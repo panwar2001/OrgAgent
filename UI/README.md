@@ -38,6 +38,31 @@ npm run mock      # http://127.0.0.1:8080
 It answers organizations, projects, documents, conversations, live window, history and
 `POST /chat`, all with the real DTO shapes.
 
+## Sign-in
+
+The console signs in with Google. It is a **UI-layer** gate: sessions live in a signed, HttpOnly
+cookie set by the Worker, and the session decides who you appear as. The Spring Boot API is still
+open, so this is not a security boundary yet — when the API grows its own authorization, the same
+Google ID token can be forwarded to it as a bearer token from `app/lib/auth.server.ts`.
+
+Enable it by configuring a client id:
+
+1. Google Cloud console → APIs & Services → Credentials → **Create OAuth client ID** →
+   *Web application*.
+2. Add the origins the console runs on (`http://localhost:5173`, your `workers.dev` domain) as
+   **Authorized JavaScript origins**. No client secret and no redirect URI is needed: the browser
+   gets an ID token and the Worker verifies it against Google's published keys.
+3. Make it available to the Worker:
+
+```bash
+echo "GOOGLE_CLIENT_ID=…apps.googleusercontent.com" >> .dev.vars   # local
+npx wrangler secret put SESSION_SECRET                             # deployment
+```
+
+With a client id present, every console route requires a session and sends visitors to
+`/login?next=…`. Without one, the console stays open and says so in the sidebar, rather than locking
+people out of an app whose API is open anyway.
+
 ## Configuration
 
 The backend URL is a Wrangler variable, read per request by the loaders:
@@ -71,7 +96,26 @@ misconfigured deployment obvious at a glance.
 | `/organizations` | list and create organizations |
 | `/organizations/:organizationId` | rename, suspend/activate, delete; list and create projects |
 | `/organizations/:organizationId/projects/:projectId` | ingest documents, watch ingestion status, edit or delete the project |
-| `/organizations/:organizationId/projects/:projectId/chat` | ask questions, see the sources, browse conversations, compare the Redis window with the Postgres log |
+| `/organizations/:organizationId/chat` | the chat workspace: session rail on the left, conversation on the right. `?c=<session>` opens a session, `?project=<id>` preselects a project for a new one |
+| `/login` | Google sign-in (or instructions when it is not configured) |
+
+## The chat workspace
+
+Modelled on ChatGPT, because that is the shape people already know:
+
+- **Left rail** — every session of the organization, across its projects, grouped into Today,
+  Yesterday, Previous 7 days, Previous 30 days and Older, filterable, with the project name and a
+  relative timestamp on each row. Delete on hover.
+- **Right pane** — the conversation, with the composer pinned to the bottom.
+- **Answers are markdown**: `react-markdown` + `remark-gfm` (headings, lists, tables, links) with
+  `rehype-highlight` for fenced code, rendered through the typography plugin so it uses the same
+  design tokens as the rest of the app. Code-token colours flip with the theme.
+- Each answer carries its **sources** (document title and similarity), the model, the latency, and
+  whether it came from the semantic cache, plus a copy button.
+- Composer: **Enter** sends, **Shift+Enter** adds a line, and it grows with the text.
+- Asking in a brand new chat creates the session and adopts its id in the URL, so every session is a
+  shareable link. The answer is held optimistically in the DOM and reconciled with the Postgres log,
+  so a turn never flashes away while the async writers catch up.
 
 ## How it talks to the backend
 
@@ -109,7 +153,11 @@ built Worker — the same configuration Cloudflare's own autoconfiguration gener
 Checked against the mock backend through the built Worker (`wrangler dev`):
 
 - `/`, `/organizations`, a project page and a chat page all render live backend data (200)
-- `POST` to the chat route reaches the backend and renders the answer with its sources
+- `POST` to the chat route reaches the backend, and creating a session returns a 302 that adopts the
+  new conversation id
+- answers render as real markdown structure (`<p>`, `<ul>`, `<li>`, `<strong>`), not raw text
+- with `GOOGLE_CLIENT_ID` set, `/` and `/organizations/:id/chat` redirect to `/login?next=…`;
+  without it the console stays open and the sidebar says sign-in is not configured
 - with the backend down, routes return 503 and the error boundary renders the code and message
 - `npm run typecheck` and `npm run build` are clean
 

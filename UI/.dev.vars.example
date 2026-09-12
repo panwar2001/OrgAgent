@@ -1,3 +1,13 @@
 # Copy to .dev.vars for local development (`npm run dev`).
-# Wrangler loads this file into the Worker's env bindings.
+# Wrangler loads this into the Worker's env bindings.
+
 API_BASE_URL=http://127.0.0.1:8080
+
+# Google sign-in. Leave GOOGLE_CLIENT_ID unset to run the console without sign-in.
+# Create an OAuth client of type "Web application" in the Google Cloud console and add
+# http://localhost:5173 (and your deployed origin) as an authorized JavaScript origin.
+GOOGLE_CLIENT_ID=
+
+# Signs the session cookie. Use a long random value; set it with
+# `wrangler secret put SESSION_SECRET` for a deployment.
+SESSION_SECRET=

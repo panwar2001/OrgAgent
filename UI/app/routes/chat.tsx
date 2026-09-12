@@ -1,4 +1,4 @@
-import { BookOpenIcon, MessageSquareIcon, SparklesIcon } from "lucide-react";
+import { ArrowLeftIcon, BookOpenIcon, MessageSquareIcon, SparklesIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import {
   Link,
@@ -16,15 +16,16 @@ import {
 import { Composer } from "~/components/chat/composer";
 import { MessageBubble } from "~/components/chat/message-bubble";
 import { SessionRail } from "~/components/chat/session-rail";
-import { PageHeader } from "~/components/page-header";
 import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Label } from "~/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
+import { UserMenu } from "~/components/user-menu";
 import type { ActionResult } from "~/lib/api/server";
-import { api, attempt, load } from "~/lib/api/server";
+import { api, attempt, load, workerEnv } from "~/lib/api/server";
+import { authConfig, requireUser } from "~/lib/auth.server";
 import type { ChatAnswer, ChatMessage, ConversationSummary, Project } from "~/lib/api/types";
 import { errorOf, failure, fieldError } from "~/lib/forms";
 
@@ -40,6 +41,10 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
   const conversationId = url.searchParams.get("c");
   const projectFromUrl = url.searchParams.get("project");
 
+  // The chat sits outside the app shell, so it enforces the sign-in gate itself.
+  const env = workerEnv(context);
+  const user = await requireUser(request, env);
+
   return load(async () => {
     const client = api(context);
     const [organization, sessions, projects] = await Promise.all([
@@ -52,6 +57,8 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
 
     if (!conversationId || !selectedProjectId) {
       return {
+        user: user ?? null,
+        authConfigured: Boolean(authConfig(env)),
         organization,
         sessions,
         projects,
@@ -71,6 +78,8 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
     ]);
 
     return {
+      user: user ?? null,
+      authConfigured: Boolean(authConfig(env)),
       organization,
       sessions,
       projects,
@@ -159,8 +168,19 @@ export default function Chat() {
   const selectedProjectId = projectId ?? data.projects.content[0]?.id;
 
   return (
-    <div className="-m-4 flex h-[calc(100svh-0px)] min-h-0 lg:-m-8">
-      <aside className="hidden w-72 shrink-0 lg:block">
+    <div className="flex h-svh min-h-0 flex-col">
+      <header className="flex items-center justify-between gap-3 border-b px-4 py-2">
+        <Button asChild size="sm" variant="ghost">
+          <Link to={`/organizations/${data.organization.id}`}>
+            <ArrowLeftIcon data-icon="inline-start" />
+            {data.organization.name}
+          </Link>
+        </Button>
+        <UserMenu user={data.user} authConfigured={data.authConfigured} />
+      </header>
+
+      <div className="flex min-h-0 flex-1">
+      <aside className="hidden w-72 shrink-0 md:block">
         <SessionRail
           organizationId={data.organization.id}
           organizationName={data.organization.name}
@@ -182,12 +202,6 @@ export default function Chat() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button asChild size="sm" variant="outline" className="lg:hidden">
-              <Link to={`/organizations/${data.organization.id}`}>
-                <MessageSquareIcon data-icon="inline-start" />
-                Sessions
-              </Link>
-            </Button>
             <Button asChild size="sm" variant="ghost">
               <Link to={`/organizations/${data.organization.id}/chat`}>New chat</Link>
             </Button>
@@ -266,6 +280,7 @@ export default function Chat() {
           )}
         </div>
       </section>
+      </div>
     </div>
   );
 }

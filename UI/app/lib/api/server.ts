@@ -7,6 +7,16 @@ import { ApiError, createApiClient, type ApiClient } from "./client";
 
 const FALLBACK_BASE_URL = "http://127.0.0.1:8080";
 
+/**
+ * The Worker bindings for this request.
+ *
+ * Values are optional: the context is only set by workers/app.ts, and tests or a client-side render
+ * have none. Callers treat a missing binding as "not configured".
+ */
+export function workerEnv(context: Readonly<RouterContextProvider>): Partial<Env> {
+  return context.get(cloudflareContext)?.env ?? {};
+}
+
 /** Where the backend lives for this request: a Wrangler var, else the local default. */
 export function apiBaseUrl(context: Readonly<RouterContextProvider>): string {
   return context.get(cloudflareContext)?.env?.API_BASE_URL ?? FALLBACK_BASE_URL;

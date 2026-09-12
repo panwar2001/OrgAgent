@@ -1,11 +1,17 @@
-import { ActivityIcon, Building2Icon, LayoutDashboardIcon } from "lucide-react";
-import { NavLink, Outlet, useLoaderData, type LoaderFunctionArgs } from "react-router";
+import { ActivityIcon, Building2Icon, LayoutDashboardIcon, ShieldAlertIcon } from "lucide-react";
+import { Link, NavLink, Outlet, useLoaderData, type LoaderFunctionArgs } from "react-router";
 
-import { apiBaseUrl } from "~/lib/api/server";
+import { UserMenu } from "~/components/user-menu";
+import { Button } from "~/components/ui/button";
+import { requireUser, authConfig } from "~/lib/auth.server";
+import { apiBaseUrl, workerEnv } from "~/lib/api/server";
 import { cn } from "~/lib/utils";
 
-export function loader({ context }: LoaderFunctionArgs) {
-  return { apiBaseUrl: apiBaseUrl(context) };
+export async function loader({ context, request }: LoaderFunctionArgs) {
+  const env = workerEnv(context);
+  // Sign-in is required only once GOOGLE_CLIENT_ID is configured; until then the console is open.
+  const user = await requireUser(request, env);
+  return { apiBaseUrl: apiBaseUrl(context), user: user ?? null, authConfigured: Boolean(authConfig(env)) };
 }
 
 const NAV = [
@@ -14,7 +20,7 @@ const NAV = [
 ];
 
 export default function AppShell() {
-  const { apiBaseUrl } = useLoaderData<typeof loader>();
+  const { apiBaseUrl, user, authConfigured } = useLoaderData<typeof loader>();
 
   return (
     <div className="grid min-h-svh grid-cols-1 lg:grid-cols-[16rem_1fr]">
@@ -50,15 +56,37 @@ export default function AppShell() {
           ))}
         </nav>
 
-        <div className="mt-auto space-y-1 rounded-md border border-sidebar-border p-3 text-xs">
-          <p className="font-medium">Backend</p>
-          <p className="break-all text-muted-foreground">{apiBaseUrl}</p>
+        <div className="mt-auto space-y-3">
+          {!authConfigured && (
+            <div className="space-y-1.5 rounded-md border border-dashed border-sidebar-border p-3 text-xs">
+              <p className="flex items-center gap-1.5 font-medium">
+                <ShieldAlertIcon className="size-3.5" />
+                Sign-in not configured
+              </p>
+              <p className="text-muted-foreground">
+                Anyone with the URL can use this console, and the API behind it is open too.
+              </p>
+              <Button asChild size="sm" variant="outline" className="w-full">
+                <Link to="/login">Set up Google sign-in</Link>
+              </Button>
+            </div>
+          )}
+
+          <div className="space-y-1 rounded-md border border-sidebar-border p-3 text-xs">
+            <p className="font-medium">Backend</p>
+            <p className="break-all text-muted-foreground">{apiBaseUrl}</p>
+          </div>
         </div>
       </aside>
 
-      <main className="min-w-0 p-4 lg:p-8">
-        <Outlet />
-      </main>
+      <div className="flex min-w-0 flex-col">
+        <header className="flex items-center justify-end gap-2 border-b bg-background/80 px-4 py-2.5 backdrop-blur lg:px-6">
+          <UserMenu user={user} authConfigured={authConfigured} />
+        </header>
+        <main className="min-w-0 flex-1 p-4 lg:p-8">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
