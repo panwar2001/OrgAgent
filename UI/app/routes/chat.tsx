@@ -25,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { UserMenu } from "~/components/user-menu";
 import type { ActionResult } from "~/lib/api/server";
 import { api, attempt, load } from "~/lib/api/server";
-import { requireUser } from "~/lib/auth.server";
+import { requireOrganization } from "~/lib/organization.server";
 import type { ChatAnswer, ChatMessage, ConversationSummary, Project } from "~/lib/api/types";
 import { errorOf, failure, fieldError } from "~/lib/forms";
 
@@ -35,15 +35,16 @@ const SUGGESTIONS = [
   "Which exceptions or edge cases do the documents mention?",
 ];
 
-export async function loader({ context, params, request }: LoaderFunctionArgs) {
-  const organizationId = params.organizationId!;
+export async function loader(args: LoaderFunctionArgs) {
+  const { context, params, request } = args;
+  const { organization } = await requireOrganization(args);
+  const organizationId = organization.id;
   const url = new URL(request.url);
   const conversationId = url.searchParams.get("c");
   const projectFromUrl = url.searchParams.get("project");
 
   // The chat sits outside the app shell, so it enforces the sign-in gate itself.
-  await requireUser({ context, request, params } as LoaderFunctionArgs);
-
+  
   return load(async () => {
     const client = api(context);
     const [organization, sessions, projects] = await Promise.all([
@@ -87,8 +88,10 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
   });
 }
 
-export async function action({ context, params, request }: ActionFunctionArgs) {
-  const organizationId = params.organizationId!;
+export async function action(args: ActionFunctionArgs) {
+  const { context, params, request } = args;
+  const { organization } = await requireOrganization(args);
+  const organizationId = organization.id;
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
   const client = api(context);
@@ -115,7 +118,7 @@ export async function action({ context, params, request }: ActionFunctionArgs) {
 
     // A brand new conversation only gets its id from the answer: adopt it so the session is real.
     if (result.ok && !conversationId) {
-      return redirect(`/organizations/${organizationId}/chat?c=${result.data.conversationId}&project=${projectId}`);
+      return redirect(`/chat?c=${result.data.conversationId}&project=${projectId}`);
     }
     return result;
   }
@@ -127,7 +130,7 @@ export async function action({ context, params, request }: ActionFunctionArgs) {
       await client.deleteConversation(organizationId, projectId, conversationId);
       return { deleted: true };
     });
-    return result.ok ? redirect(`/organizations/${organizationId}/chat`) : result;
+    return result.ok ? redirect("/chat") : result;
   }
 
   return failure("INVALID_REQUEST", `Unknown intent '${intent}'`);
@@ -135,7 +138,6 @@ export async function action({ context, params, request }: ActionFunctionArgs) {
 
 export default function Chat() {
   const data = useLoaderData<typeof loader>();
-  const params = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -166,9 +168,9 @@ export default function Chat() {
     <div className="flex h-svh min-h-0 flex-col">
       <header className="flex items-center justify-between gap-3 border-b px-4 py-2">
         <Button asChild size="sm" variant="ghost">
-          <Link to={`/organizations/${data.organization.id}`}>
+          <Link to="/">
             <ArrowLeftIcon data-icon="inline-start" />
-            {data.organization.name}
+            Dashboard
           </Link>
         </Button>
         <UserMenu />
@@ -198,7 +200,7 @@ export default function Chat() {
           </div>
           <div className="flex items-center gap-2">
             <Button asChild size="sm" variant="ghost">
-              <Link to={`/organizations/${data.organization.id}/chat`}>New chat</Link>
+              <Link to="/chat">New chat</Link>
             </Button>
           </div>
         </div>

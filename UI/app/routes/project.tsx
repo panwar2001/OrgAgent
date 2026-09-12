@@ -41,9 +41,12 @@ import type { ActionResult } from "~/lib/api/server";
 import { api, attempt, load } from "~/lib/api/server";
 import type { DocumentDto } from "~/lib/api/types";
 import { errorOf, fieldError } from "~/lib/forms";
+import { requireOrganization } from "~/lib/organization.server";
 
-export async function loader({ context, params, request }: LoaderFunctionArgs) {
-  const organizationId = params.organizationId!;
+export async function loader(args: LoaderFunctionArgs) {
+  const { context, params, request } = args;
+  const { organization } = await requireOrganization(args);
+  const organizationId = organization.id;
   const projectId = params.projectId!;
   const url = new URL(request.url);
   const page = Number(url.searchParams.get("page") ?? "0");
@@ -58,8 +61,10 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
   });
 }
 
-export async function action({ context, params, request }: ActionFunctionArgs) {
-  const organizationId = params.organizationId!;
+export async function action(args: ActionFunctionArgs) {
+  const { context, params, request } = args;
+  const { organization } = await requireOrganization(args);
+  const organizationId = organization.id;
   const projectId = params.projectId!;
   const client = api(context);
   const form = await request.formData();
@@ -107,7 +112,7 @@ export async function action({ context, params, request }: ActionFunctionArgs) {
         await client.deleteProject(organizationId, projectId);
         return { deleted: true };
       });
-      return result.ok ? redirect(`/organizations/${organizationId}`) : result;
+      return result.ok ? redirect("/") : result;
     }
     default:
       return {
@@ -156,16 +161,12 @@ export default function ProjectDetail() {
       <PageHeader
         title={project.name}
         description={project.description ?? "Project · documents are embedded into pgvector and answered from."}
-        breadcrumb={[
-          { label: "Organizations", to: "/organizations" },
-          { label: "Organization", to: `/organizations/${params.organizationId}` },
-          { label: project.name },
-        ]}
+        breadcrumb={[{ label: "Dashboard", to: "/" }, { label: project.name }]}
         actions={
           <>
             <StatusBadge status={project.status} />
             <Button asChild size="sm">
-              <Link to={`/organizations/${params.organizationId}/chat?project=${project.id}`}>
+              <Link to={`/chat?project=${project.id}`}>
                 <MessageSquareIcon data-icon="inline-start" />
                 Open chat
               </Link>
@@ -270,7 +271,6 @@ export default function ProjectDetail() {
                         </TableCell>
                         <TableCell className="text-right">
                           <DeleteDocument
-                            organizationId={params.organizationId!}
                             projectId={params.projectId!}
                             documentId={document.id}
                             title={document.title}
@@ -320,7 +320,6 @@ export default function ProjectDetail() {
             <Separator />
             <CardContent className="pt-6">
               <DeleteProject
-                organizationId={params.organizationId!}
                 projectId={params.projectId!}
                 name={project.name}
               />
@@ -345,12 +344,10 @@ export default function ProjectDetail() {
 }
 
 function DeleteDocument({
-  organizationId,
   projectId,
   documentId,
   title,
 }: {
-  organizationId: string;
   projectId: string;
   documentId: string;
   title: string;
@@ -371,7 +368,6 @@ function DeleteDocument({
     >
       <input type="hidden" name="intent" value="delete-document" />
       <input type="hidden" name="documentId" value={documentId} />
-      <input type="hidden" name="organizationId" value={organizationId} />
       <input type="hidden" name="projectId" value={projectId} />
       <SubmitButton pending={fetcher.state !== "idle"} size="sm" variant="ghost">
         <Trash2Icon data-icon="inline-start" />
@@ -382,11 +378,9 @@ function DeleteDocument({
 }
 
 function DeleteProject({
-  organizationId,
   projectId,
   name,
 }: {
-  organizationId: string;
   projectId: string;
   name: string;
 }) {
@@ -404,7 +398,6 @@ function DeleteProject({
         Deletes the project, every ingested document and all of its conversations.
       </p>
       <input type="hidden" name="intent" value="delete-project" />
-      <input type="hidden" name="organizationId" value={organizationId} />
       <input type="hidden" name="projectId" value={projectId} />
       <SubmitButton pending={fetcher.state !== "idle"} size="sm" variant="destructive" className="w-full">
         <ArchiveIcon data-icon="inline-start" />

@@ -64,7 +64,7 @@ export function SessionRail({ organizationId, organizationName, sessions, active
     })).filter((group) => group.items.length > 0);
   }, [filtered]);
 
-  const newChatHref = `/organizations/${organizationId}/chat${projectId ? `?project=${projectId}` : ""}`;
+  const newChatHref = `/chat${projectId ? `?project=${projectId}` : ""}`;
 
   return (
     <div className="flex h-full min-h-0 flex-col border-r bg-sidebar text-sidebar-foreground">
@@ -141,7 +141,7 @@ function SessionItem({
       )}
     >
       <Link
-        to={`/organizations/${organizationId}/chat?c=${session.id}&project=${session.projectId}`}
+        to={`/chat?c=${session.id}&project=${session.projectId}`}
         className="min-w-0 flex-1 px-2 py-2"
       >
         <span className="flex items-center gap-2">

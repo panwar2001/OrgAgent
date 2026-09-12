@@ -74,6 +74,7 @@ export function isApiError(error: unknown): error is ApiError {
 export interface ApiClient {
   listOrganizations(query?: PageQuery): Promise<Page<Organization>>;
   getOrganization(organizationId: string): Promise<Organization>;
+  getOrganizationBySlug(slug: string): Promise<Organization>;
   createOrganization(input: CreateOrganizationInput): Promise<Organization>;
   renameOrganization(organizationId: string, name: string): Promise<Organization>;
   suspendOrganization(organizationId: string): Promise<Organization>;
@@ -179,6 +180,7 @@ export function createApiClient(baseUrl: string): ApiClient {
   return {
     listOrganizations: (query) => request(withQuery("/api/v1/organizations", query)),
     getOrganization: (organizationId) => request(`/api/v1/organizations/${organizationId}`),
+    getOrganizationBySlug: (slug) => request(`/api/v1/organizations/by-slug/${slug}`),
     createOrganization: (input) =>
       request("/api/v1/organizations", { method: "POST", body: JSON.stringify(input) }),
     renameOrganization: (organizationId, name) =>
