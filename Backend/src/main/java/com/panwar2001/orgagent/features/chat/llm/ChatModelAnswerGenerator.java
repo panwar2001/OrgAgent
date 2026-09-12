@@ -10,8 +10,6 @@ import org.springframework.ai.chat.model.Generation;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.stereotype.Component;
 
-import lombok.RequiredArgsConstructor;
-
 /**
  * Calls the configured chat model.
  *
@@ -20,10 +18,13 @@ import lombok.RequiredArgsConstructor;
  * than stored as an answer.
  */
 @Component
-@RequiredArgsConstructor
 public class ChatModelAnswerGenerator implements AnswerGenerator {
 
 	private final ChatModel chatModel;
+
+	public ChatModelAnswerGenerator(ChatModel chatModel) {
+		this.chatModel = chatModel;
+	}
 
 	@Override
 	public GeneratedAnswer generate(Prompt prompt) {

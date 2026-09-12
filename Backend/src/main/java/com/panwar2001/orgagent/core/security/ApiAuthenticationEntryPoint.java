@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 
 /**
  * Answers unauthenticated filter-chain requests with the API's JSON error shape instead of Spring
@@ -20,10 +19,13 @@ import lombok.RequiredArgsConstructor;
  * <p>Dormant while the API is open; it takes effect the moment authentication is required.
  */
 @Component
-@RequiredArgsConstructor
 public class ApiAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
 	private final ApiErrorWriter errorWriter;
+
+	public ApiAuthenticationEntryPoint(ApiErrorWriter errorWriter) {
+		this.errorWriter = errorWriter;
+	}
 
 	@Override
 	public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException cause)

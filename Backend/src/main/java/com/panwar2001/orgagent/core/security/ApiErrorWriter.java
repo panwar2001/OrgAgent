@@ -9,7 +9,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -20,10 +19,13 @@ import tools.jackson.databind.ObjectMapper;
  * looking exactly like every other error the API returns.
  */
 @Component
-@RequiredArgsConstructor
 public class ApiErrorWriter {
 
 	private final ObjectMapper json;
+
+	public ApiErrorWriter(ObjectMapper json) {
+		this.json = json;
+	}
 
 	public void write(HttpServletResponse response, ApiError error) throws IOException {
 		response.setStatus(error.status());

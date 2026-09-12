@@ -33,7 +33,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.unit.DataSize;
 import org.springframework.web.multipart.MultipartFile;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -46,7 +45,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class IngestionService {
 
 	/** Metadata keys attached to every embedded chunk; retrieval filters on them. */
@@ -73,6 +71,20 @@ public class IngestionService {
 	private final VectorStore vectorStore;
 
 	private final OrgAgentProperties properties;
+
+	public IngestionService(DocumentRepository repository,
+			ProjectService projectService,
+			DocumentTextExtractors extractors,
+			TextChunker chunker,
+			VectorStore vectorStore,
+			OrgAgentProperties properties) {
+		this.repository = repository;
+		this.projectService = projectService;
+		this.extractors = extractors;
+		this.chunker = chunker;
+		this.vectorStore = vectorStore;
+		this.properties = properties;
+	}
 
 	/**
 	 * Ingests one file into a project.

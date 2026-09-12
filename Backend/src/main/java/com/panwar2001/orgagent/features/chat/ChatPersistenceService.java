@@ -11,7 +11,6 @@ import com.panwar2001.orgagent.features.chat.cache.SemanticAnswerCache;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -24,7 +23,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ChatPersistenceService {
 
 	private final ChatWindowStore windowStore;
@@ -34,6 +32,16 @@ public class ChatPersistenceService {
 	private final ChatConversationRepository conversations;
 
 	private final SemanticAnswerCache answerCache;
+
+	public ChatPersistenceService(ChatWindowStore windowStore,
+			ChatMessageRepository messages,
+			ChatConversationRepository conversations,
+			SemanticAnswerCache answerCache) {
+		this.windowStore = windowStore;
+		this.messages = messages;
+		this.conversations = conversations;
+		this.answerCache = answerCache;
+	}
 
 	/** Adds the question and the answer to the live window that the next prompt replays. */
 	@Async

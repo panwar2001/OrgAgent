@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 import com.panwar2001.orgagent.features.chat.ChatMessage;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * One logged turn, as stored in Postgres.

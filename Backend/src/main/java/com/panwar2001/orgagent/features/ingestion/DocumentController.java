@@ -21,15 +21,17 @@ import org.springframework.web.multipart.MultipartFile;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/organizations/{organizationId}/projects/{projectId}/documents")
-@RequiredArgsConstructor
 @Tag(name = "Documents", description = "Ingest and inspect project documents")
 public class DocumentController {
 
 	private final IngestionService service;
+
+	public DocumentController(IngestionService service) {
+		this.service = service;
+	}
 
 	@PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
 	@ResponseStatus(HttpStatus.CREATED)

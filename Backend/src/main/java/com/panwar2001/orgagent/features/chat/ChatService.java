@@ -33,7 +33,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -51,7 +50,6 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ChatService {
 
 	private final ProjectService projectService;
@@ -73,6 +71,28 @@ public class ChatService {
 	private final ChatPersistenceService persistence;
 
 	private final OrgAgentProperties properties;
+
+	public ChatService(ProjectService projectService,
+			ChatConversationRepository conversations,
+			ChatMessageRepository messages,
+			ChatWindowStore windowStore,
+			RagRetriever retriever,
+			RagPromptBuilder promptBuilder,
+			AnswerGenerator answerGenerator,
+			SemanticAnswerCache answerCache,
+			ChatPersistenceService persistence,
+			OrgAgentProperties properties) {
+		this.projectService = projectService;
+		this.conversations = conversations;
+		this.messages = messages;
+		this.windowStore = windowStore;
+		this.retriever = retriever;
+		this.promptBuilder = promptBuilder;
+		this.answerGenerator = answerGenerator;
+		this.answerCache = answerCache;
+		this.persistence = persistence;
+		this.properties = properties;
+	}
 
 	/**
 	 * Asks a question.

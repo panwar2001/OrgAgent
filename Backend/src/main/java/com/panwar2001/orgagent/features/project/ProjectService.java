@@ -17,8 +17,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import lombok.RequiredArgsConstructor;
-
 /**
  * Use cases around projects.
  *
@@ -26,12 +24,16 @@ import lombok.RequiredArgsConstructor;
  * tenant is indistinguishable from one that does not exist.
  */
 @Service
-@RequiredArgsConstructor
 public class ProjectService {
 
 	private final ProjectRepository repository;
 
 	private final OrganizationService organizationService;
+
+	public ProjectService(ProjectRepository repository, OrganizationService organizationService) {
+		this.repository = repository;
+		this.organizationService = organizationService;
+	}
 
 	@Transactional
 	public ProjectResponse create(UUID organizationId, CreateProjectRequest request) {

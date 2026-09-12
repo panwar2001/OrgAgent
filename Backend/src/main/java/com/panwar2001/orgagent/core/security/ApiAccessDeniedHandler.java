@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 
 /**
  * Answers authenticated-but-not-allowed filter-chain requests with the API's JSON error shape.
@@ -19,10 +18,13 @@ import lombok.RequiredArgsConstructor;
  * <p>Once organizations own their data, this is the response another tenant's project gets.
  */
 @Component
-@RequiredArgsConstructor
 public class ApiAccessDeniedHandler implements AccessDeniedHandler {
 
 	private final ApiErrorWriter errorWriter;
+
+	public ApiAccessDeniedHandler(ApiErrorWriter errorWriter) {
+		this.errorWriter = errorWriter;
+	}
 
 	@Override
 	public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException cause)

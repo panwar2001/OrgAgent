@@ -23,15 +23,17 @@ import org.springframework.web.bind.annotation.RestController;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/organizations/{organizationId}/projects")
-@RequiredArgsConstructor
 @Tag(name = "Projects", description = "Manage projects inside an organization")
 public class ProjectController {
 
 	private final ProjectService service;
+
+	public ProjectController(ProjectService service) {
+		this.service = service;
+	}
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)

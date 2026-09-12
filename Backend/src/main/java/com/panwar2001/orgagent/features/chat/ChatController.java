@@ -24,15 +24,17 @@ import org.springframework.web.bind.annotation.RestController;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/v1/organizations/{organizationId}/projects/{projectId}/chat")
-@RequiredArgsConstructor
 @Tag(name = "Chat", description = "Ask questions grounded in the project's documents")
 public class ChatController {
 
 	private final ChatService service;
+
+	public ChatController(ChatService service) {
+		this.service = service;
+	}
 
 	@PostMapping
 	@Operation(summary = "Ask a question about the project's documents")
