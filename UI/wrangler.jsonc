@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "orgagent-ui",
+  "main": "./workers/app.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    // Base URL of the OrgAgent Spring Boot backend. Set the deployed backend URL here
+    // (or with `wrangler secret put` / dashboard vars) before deploying.
+    "API_BASE_URL": "http://127.0.0.1:8080"
+  }
+}
