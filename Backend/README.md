@@ -236,6 +236,15 @@ Decisions worth flagging:
   separate search engine.
 - **Documents are committed before embedding.** A crash mid-ingestion leaves a `FAILED` row with the
   reason instead of an invisible gap between "uploaded" and "searchable".
+- **Spring Boot is pinned to a released version (4.1.1), not a snapshot.** `spring init` had selected
+  `4.1.2-SNAPSHOT` from `repo.spring.io/snapshot`; snapshot metadata churns, so the IDE intermittently
+  reports Spring artifacts and the Boot plugin as unresolved until it re-resolves them. Every
+  dependency this build needs is a released artifact on Maven Central, so no snapshot repository is
+  declared anywhere. To move back to the snapshot, change the plugin version and re-add
+  `maven { url = uri("https://repo.spring.io/snapshot") }` to both `pluginManagement` in
+  `settings.gradle.kts` and `repositories` in `build.gradle.kts`.
+- **Third-party versions live in plain script values** (`springAiVersion`, `springdocVersion`) rather
+  than `extra` + `property(...)`, so an IDE reading the script resolves them without a property lookup.
 
 ## Possible next steps
 

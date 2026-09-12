@@ -1,11 +1,16 @@
 plugins {
 	java
-	id("org.springframework.boot") version "4.1.2-SNAPSHOT"
+	id("org.springframework.boot") version "4.1.1"
 	id("io.spring.dependency-management") version "1.1.7"
 }
 
 group = "com.panwar2001.orgagent"
 version = "0.0.1-SNAPSHOT"
+
+// Versions the Spring Boot BOM does not manage. Declared as plain values rather than as extra
+// properties so the IDE can resolve them by reading the script, with no property lookup involved.
+val springAiVersion = "2.0.1"
+val springdocVersion = "3.1.1"
 
 java {
 	toolchain {
@@ -13,13 +18,11 @@ java {
 	}
 }
 
+// Every dependency, including the Spring Boot Gradle plugin, is a released artifact on Maven
+// Central, so no snapshot repository is declared: nothing churns under IntelliJ's feet.
 repositories {
 	mavenCentral()
-	maven { url = uri("https://repo.spring.io/snapshot") }
 }
-
-extra["springAiVersion"] = "2.0.1"
-extra["springdocVersion"] = "3.1.1"
 
 dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
@@ -27,7 +30,7 @@ dependencies {
 	implementation("org.springframework.boot:spring-boot-starter-validation")
 	implementation("org.springframework.boot:spring-boot-starter-webmvc")
 	implementation("org.springframework.boot:spring-boot-starter-security")
-	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:${property("springdocVersion")}")
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:$springdocVersion")
 	implementation("org.springframework.ai:spring-ai-markdown-document-reader")
 	implementation("org.springframework.ai:spring-ai-pdf-document-reader")
 	implementation("org.springframework.ai:spring-ai-starter-model-chat-memory-repository-jdbc")
@@ -54,7 +57,7 @@ dependencies {
 
 dependencyManagement {
 	imports {
-		mavenBom("org.springframework.ai:spring-ai-bom:${property("springAiVersion")}")
+		mavenBom("org.springframework.ai:spring-ai-bom:$springAiVersion")
 	}
 }
 
