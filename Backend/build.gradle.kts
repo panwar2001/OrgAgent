@@ -35,7 +35,7 @@ dependencies {
 	implementation("org.springframework.ai:spring-ai-starter-model-google-genai-embedding")
 	implementation("org.springframework.ai:spring-ai-starter-vector-store-pgvector")
 	implementation("org.springframework.ai:spring-ai-vector-store-advisor")
-	implementation("org.flywaydb:flyway-core")
+	implementation("org.springframework.boot:spring-boot-starter-flyway")
 	implementation("org.flywaydb:flyway-database-postgresql")
 	compileOnly("org.projectlombok:lombok")
 	developmentOnly("org.springframework.boot:spring-boot-devtools")

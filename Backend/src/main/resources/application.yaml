@@ -81,6 +81,15 @@ springdoc:
     tags-sorter: alpha
 
 orgagent:
+  cors:
+    allowed-origins:
+      - ${CORS_ALLOWED_ORIGIN:http://localhost:3000}
+      - http://localhost:5173
+    allowed-methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS]
+    allowed-headers: [Authorization, Content-Type, Accept, X-Requested-With]
+    exposed-headers: [Location]
+    allow-credentials: true
+    max-age: PT1H
   rag:
     # How many of the most recent turns are replayed from Redis into the prompt.
     chat-window-size: ${CHAT_WINDOW_SIZE:20}
