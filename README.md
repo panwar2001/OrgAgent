@@ -7,14 +7,9 @@ and questions are answered **only** from those documents, with citations.
 
 ## Demo
 
-<video src="https://www.youtube.com/watch?v=Ej5GUgVgbnQ" controls muted playsinline width="100%"></video>
 
-**Recording script** (90–120 s, one take — the last beat is the one that lands):
+https://github.com/user-attachments/assets/e6ce56f2-9372-4f68-8d9a-cf86cb3a3021
 
-1. Sign in with Google through Clerk → lands on **your organization's** dashboard.
-2. Create a project, upload a markdown or PDF document → watch it go from `pending` to `indexed` with a chunk count.
-3. Ask a question the document answers → cited answer, with model and latency badges.
-4. Ask the **same question again** → answered from the semantic cache with no model call.
 
 ---
 
