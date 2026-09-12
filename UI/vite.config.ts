@@ -10,7 +10,12 @@ export default defineConfig({
     tailwindcss(),
     reactRouter(),
   ],
+
   resolve: {
     tsconfigPaths: true,
+  },
+
+  ssr: {
+    noExternal: ["@clerk/react-router"],
   },
 });

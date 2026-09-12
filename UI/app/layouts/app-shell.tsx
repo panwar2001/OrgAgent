@@ -1,17 +1,15 @@
-import { ActivityIcon, Building2Icon, LayoutDashboardIcon, ShieldAlertIcon } from "lucide-react";
+import { ActivityIcon, Building2Icon, LayoutDashboardIcon } from "lucide-react";
 import { Link, NavLink, Outlet, useLoaderData, type LoaderFunctionArgs } from "react-router";
 
 import { UserMenu } from "~/components/user-menu";
-import { Button } from "~/components/ui/button";
-import { requireUser, authConfig } from "~/lib/auth.server";
+import { requireUser } from "~/lib/auth.server";
 import { apiBaseUrl, workerEnv } from "~/lib/api/server";
 import { cn } from "~/lib/utils";
 
 export async function loader(args: LoaderFunctionArgs) {
-  const env = workerEnv(args.context);
-  // Sign-in is required only once Clerk keys are configured; until then the console is open.
+  // Signed out visitors are sent to Clerk's sign-in page before anything else loads.
   const user = await requireUser(args);
-  return { apiBaseUrl: apiBaseUrl(args.context), signedIn: Boolean(user), authConfigured: Boolean(authConfig(env)) };
+  return { apiBaseUrl: apiBaseUrl(args.context), userId: user.userId };
 }
 
 const NAV = [
@@ -20,7 +18,7 @@ const NAV = [
 ];
 
 export default function AppShell() {
-  const { apiBaseUrl, authConfigured } = useLoaderData<typeof loader>();
+  const { apiBaseUrl } = useLoaderData<typeof loader>();
 
   return (
     <div className="grid min-h-svh grid-cols-1 lg:grid-cols-[16rem_1fr]">
@@ -57,20 +55,6 @@ export default function AppShell() {
         </nav>
 
         <div className="mt-auto space-y-3">
-          {!authConfigured && (
-            <div className="space-y-1.5 rounded-md border border-dashed border-sidebar-border p-3 text-xs">
-              <p className="flex items-center gap-1.5 font-medium">
-                <ShieldAlertIcon className="size-3.5" />
-                Sign-in not configured
-              </p>
-              <p className="text-muted-foreground">
-                Anyone with the URL can use this console, and the API behind it is open too.
-              </p>
-              <Button asChild size="sm" variant="outline" className="w-full">
-                <Link to="/login">Set up Google sign-in</Link>
-              </Button>
-            </div>
-          )}
 
           <div className="space-y-1 rounded-md border border-sidebar-border p-3 text-xs">
             <p className="font-medium">Backend</p>
@@ -81,7 +65,7 @@ export default function AppShell() {
 
       <div className="flex min-w-0 flex-col">
         <header className="flex items-center justify-end gap-2 border-b bg-background/80 px-4 py-2.5 backdrop-blur lg:px-6">
-          <UserMenu authConfigured={authConfigured} />
+          <UserMenu />
         </header>
         <main className="min-w-0 flex-1 p-4 lg:p-8">
           <Outlet />

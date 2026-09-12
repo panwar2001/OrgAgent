@@ -15,6 +15,7 @@
   "dependencies": {
     "@clerk/clerk-react": "^5.61.9",
     "@clerk/react-router": "^3.6.22",
+    "@clerk/ui": "^1.32.3",
     "@fontsource-variable/geist": "^5.3.0",
     "@tailwindcss/typography": "^0.5.20",
     "class-variance-authority": "^0.7.1",

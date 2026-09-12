@@ -24,8 +24,8 @@ import { Label } from "~/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
 import { UserMenu } from "~/components/user-menu";
 import type { ActionResult } from "~/lib/api/server";
-import { api, attempt, load, workerEnv } from "~/lib/api/server";
-import { authConfig, requireUser } from "~/lib/auth.server";
+import { api, attempt, load } from "~/lib/api/server";
+import { requireUser } from "~/lib/auth.server";
 import type { ChatAnswer, ChatMessage, ConversationSummary, Project } from "~/lib/api/types";
 import { errorOf, failure, fieldError } from "~/lib/forms";
 
@@ -42,8 +42,7 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
   const projectFromUrl = url.searchParams.get("project");
 
   // The chat sits outside the app shell, so it enforces the sign-in gate itself.
-  const env = workerEnv(context);
-  const user = await requireUser({ context, request, params } as LoaderFunctionArgs);
+  await requireUser({ context, request, params } as LoaderFunctionArgs);
 
   return load(async () => {
     const client = api(context);
@@ -57,8 +56,7 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
 
     if (!conversationId || !selectedProjectId) {
       return {
-          authConfigured: Boolean(authConfig(env)),
-        organization,
+          organization,
         sessions,
         projects,
         activeId: null,
@@ -77,7 +75,6 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
     ]);
 
     return {
-      authConfigured: Boolean(authConfig(env)),
       organization,
       sessions,
       projects,
@@ -174,7 +171,7 @@ export default function Chat() {
             {data.organization.name}
           </Link>
         </Button>
-        <UserMenu authConfigured={data.authConfigured} />
+        <UserMenu />
       </header>
 
       <div className="flex min-h-0 flex-1">
