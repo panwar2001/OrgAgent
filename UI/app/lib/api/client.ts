@@ -4,6 +4,7 @@ import type {
   ChatAnswer,
   ChatMessage,
   Conversation,
+  ConversationSummary,
   ConversationWindow,
   CreateOrganizationInput,
   CreateProjectInput,
@@ -93,6 +94,10 @@ export interface ApiClient {
 
   ask(organizationId: string, projectId: string, input: AskQuestionInput): Promise<ChatAnswer>;
   listConversations(organizationId: string, projectId: string, query?: PageQuery): Promise<Page<Conversation>>;
+  listOrganizationConversations(
+    organizationId: string,
+    query?: PageQuery,
+  ): Promise<Page<ConversationSummary>>;
   getConversationWindow(
     organizationId: string,
     projectId: string,
@@ -218,6 +223,8 @@ export function createApiClient(baseUrl: string): ApiClient {
       request(`${base(organizationId, projectId)}/chat`, { method: "POST", body: JSON.stringify(input) }),
     listConversations: (organizationId, projectId, query) =>
       request(withQuery(`${base(organizationId, projectId)}/chat`, query)),
+    listOrganizationConversations: (organizationId, query) =>
+      request(withQuery(`/api/v1/organizations/${organizationId}/conversations`, query)),
     getConversationWindow: (organizationId, projectId, conversationId) =>
       request(`${base(organizationId, projectId)}/chat/${conversationId}`),
     getConversationHistory: (organizationId, projectId, conversationId, query) =>

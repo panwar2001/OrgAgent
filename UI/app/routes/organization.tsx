@@ -200,11 +200,7 @@ export default function OrganizationDetail() {
                           </Link>
                         </Button>
                         <Button asChild size="sm" variant="ghost">
-                          <Link
-                            to={`/organizations/${params.organizationId}/projects/${project.id}/chat`}
-                          >
-                            Chat
-                          </Link>
+                          <Link to={`/organizations/${params.organizationId}/chat?project=${project.id}`}>Chat</Link>
                         </Button>
                       </TableCell>
                     </TableRow>

@@ -31,6 +31,18 @@ public final class Pagination {
 	 * @throws BadRequestException if the page index or size is out of range
 	 */
 	public static Pageable of(int page, int size, String sortProperty) {
+		return of(page, size, sortProperty, Sort.Direction.ASC);
+	}
+
+	/**
+	 * @param page zero-based page index
+	 * @param size requested page size, capped at {@value #MAX_PAGE_SIZE}
+	 * @param sortProperty entity property to sort by
+	 * @param direction sort direction
+	 * @return a validated page request
+	 * @throws BadRequestException if the page index or size is out of range
+	 */
+	public static Pageable of(int page, int size, String sortProperty, Sort.Direction direction) {
 		if (page < 0) {
 			throw new BadRequestException(ErrorCode.INVALID_PARAMETER,
 					"'page' must be zero or greater but was %d".formatted(page));
@@ -39,7 +51,7 @@ public final class Pagination {
 			throw new BadRequestException(ErrorCode.INVALID_PARAMETER,
 					"'size' must be between 1 and %d but was %d".formatted(MAX_PAGE_SIZE, size));
 		}
-		return PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, sortProperty));
+		return PageRequest.of(page, size, Sort.by(direction, sortProperty));
 	}
 
 }

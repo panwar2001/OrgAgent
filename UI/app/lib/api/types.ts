@@ -94,6 +94,17 @@ export interface Conversation {
   updatedAt: string;
 }
 
+/** A conversation as listed in the session rail, including the project it belongs to. */
+export interface ConversationSummary {
+  id: string;
+  organizationId: string;
+  projectId: string;
+  projectName: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ConversationWindow {
   conversationId: string;
   turns: { role: ChatRole; content: string; at: string }[];

@@ -19,6 +19,9 @@ public interface ChatConversationRepository extends JpaRepository<ChatConversati
 	Page<ChatConversation> findByOrganizationIdAndProjectIdOrderByUpdatedAtDesc(UUID organizationId, UUID projectId,
 			Pageable pageable);
 
+	/** Every conversation of an organization, across all of its projects, most recent first. */
+	Page<ChatConversation> findByOrganizationIdOrderByUpdatedAtDesc(UUID organizationId, Pageable pageable);
+
 	long countByProjectId(UUID projectId);
 
 	/**

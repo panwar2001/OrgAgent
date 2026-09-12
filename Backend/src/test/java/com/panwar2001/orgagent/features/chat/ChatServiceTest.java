@@ -12,11 +12,13 @@ import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import com.panwar2001.orgagent.core.config.TestProperties;
 import com.panwar2001.orgagent.core.exception.ConflictException;
+import com.panwar2001.orgagent.core.exception.ErrorCode;
 import com.panwar2001.orgagent.core.exception.ResourceNotFoundException;
 import com.panwar2001.orgagent.core.redis.ChatRole;
 import com.panwar2001.orgagent.core.redis.ChatTurn;
@@ -31,14 +33,21 @@ import com.panwar2001.orgagent.features.chat.rag.RagPromptBuilder;
 import com.panwar2001.orgagent.features.chat.rag.RagRetriever;
 import com.panwar2001.orgagent.features.chat.rag.RetrievedChunk;
 import com.panwar2001.orgagent.features.project.Project;
+import com.panwar2001.orgagent.features.organization.OrganizationService;
 import com.panwar2001.orgagent.features.project.ProjectService;
 import com.panwar2001.orgagent.features.project.ProjectStatus;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 class ChatServiceTest {
+
+	private final OrganizationService organizationService = mock(OrganizationService.class);
 
 	private final ProjectService projectService = mock(ProjectService.class);
 
@@ -62,7 +71,8 @@ class ChatServiceTest {
 
 	private final UUID projectId = UUID.randomUUID();
 
-	private final ChatService service = new ChatService(this.projectService, this.conversations, this.messages,
+	private final ChatService service = new ChatService(this.organizationService, this.projectService,
+			this.conversations, this.messages,
 			this.windowStore, this.retriever, this.promptBuilder, this.answerGenerator, this.answerCache, this.persistence,
 			TestProperties.defaults());
 
@@ -221,6 +231,32 @@ class ChatServiceTest {
 		this.service.ask(this.organizationId, this.projectId, new AskQuestionRequest("question", conversation.getId()));
 
 		verify(this.retriever).retrieve(this.projectId, "question");
+	}
+
+	@Test
+	void listsEveryConversationOfTheOrganizationAcrossProjects() {
+		when(this.conversations.findByOrganizationIdOrderByUpdatedAtDesc(eq(this.organizationId), any(Pageable.class)))
+			.thenReturn(new PageImpl<>(List.of(
+					ChatConversation.of(UUID.randomUUID(), this.organizationId, this.projectId, "Refund window"))));
+		when(this.projectService.namesById(any()))
+			.thenReturn(Map.of(this.projectId, "HR Policies"));
+
+		var page = this.service.organizationConversations(this.organizationId,
+				PageRequest.of(0, 30, Sort.by(Sort.Direction.DESC, "updatedAt")));
+
+		assertThat(page.content()).singleElement().satisfies(summary -> {
+			assertThat(summary.projectName()).isEqualTo("HR Policies");
+			assertThat(summary.title()).isEqualTo("Refund window");
+		});
+	}
+
+	@Test
+	void refusesToBrowseSessionsOfAnUnknownOrganization() {
+		when(this.organizationService.require(this.organizationId))
+			.thenThrow(ResourceNotFoundException.of(ErrorCode.ORGANIZATION_NOT_FOUND, this.organizationId));
+
+		assertThatThrownBy(() -> this.service.organizationConversations(this.organizationId, PageRequest.of(0, 30)))
+			.isInstanceOf(ResourceNotFoundException.class);
 	}
 
 	@Test

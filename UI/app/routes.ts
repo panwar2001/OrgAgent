@@ -6,6 +6,6 @@ export default [
     route("organizations", "routes/organizations.tsx"),
     route("organizations/:organizationId", "routes/organization.tsx"),
     route("organizations/:organizationId/projects/:projectId", "routes/project.tsx"),
-    route("organizations/:organizationId/projects/:projectId/chat", "routes/chat.tsx"),
+    route("organizations/:organizationId/chat", "routes/chat.tsx"),
   ]),
 ] satisfies RouteConfig;

@@ -2,6 +2,7 @@ package com.panwar2001.orgagent.features.chat;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,12 +20,14 @@ import com.panwar2001.orgagent.features.chat.dto.ChatAnswerResponse;
 import com.panwar2001.orgagent.features.chat.dto.ChatMessageResponse;
 import com.panwar2001.orgagent.features.chat.dto.ChatSource;
 import com.panwar2001.orgagent.features.chat.dto.ConversationResponse;
+import com.panwar2001.orgagent.features.chat.dto.ConversationSummaryResponse;
 import com.panwar2001.orgagent.features.chat.dto.ConversationWindowResponse;
 import com.panwar2001.orgagent.features.chat.llm.AnswerGenerator;
 import com.panwar2001.orgagent.features.chat.llm.GeneratedAnswer;
 import com.panwar2001.orgagent.features.chat.rag.RagPromptBuilder;
 import com.panwar2001.orgagent.features.chat.rag.RagRetriever;
 import com.panwar2001.orgagent.features.chat.rag.RetrievedChunk;
+import com.panwar2001.orgagent.features.organization.OrganizationService;
 import com.panwar2001.orgagent.features.project.Project;
 import com.panwar2001.orgagent.features.project.ProjectService;
 
@@ -52,6 +55,8 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 public class ChatService {
 
+	private final OrganizationService organizationService;
+
 	private final ProjectService projectService;
 
 	private final ChatConversationRepository conversations;
@@ -72,7 +77,8 @@ public class ChatService {
 
 	private final OrgAgentProperties properties;
 
-	public ChatService(ProjectService projectService,
+	public ChatService(OrganizationService organizationService,
+			ProjectService projectService,
 			ChatConversationRepository conversations,
 			ChatMessageRepository messages,
 			ChatWindowStore windowStore,
@@ -82,6 +88,7 @@ public class ChatService {
 			SemanticAnswerCache answerCache,
 			ChatPersistenceService persistence,
 			OrgAgentProperties properties) {
+		this.organizationService = organizationService;
 		this.projectService = projectService;
 		this.conversations = conversations;
 		this.messages = messages;
@@ -158,6 +165,26 @@ public class ChatService {
 		requireConversation(organizationId, projectId, conversationId);
 		Page<ChatMessage> page = this.messages.findByConversationIdOrderByCreatedAtAsc(conversationId, pageable);
 		return PageResponse.from(page, ChatMessageResponse::from);
+	}
+
+	/**
+	 * Every conversation of an organization, across all its projects, most recently used first.
+	 *
+	 * <p>This is what the console's session rail lists.
+	 */
+	public PageResponse<ConversationSummaryResponse> organizationConversations(UUID organizationId,
+			Pageable pageable) {
+		this.organizationService.require(organizationId);
+		Page<ChatConversation> page = this.conversations.findByOrganizationIdOrderByUpdatedAtDesc(organizationId,
+				pageable);
+		Map<UUID, String> projectNames = this.projectService.namesById(page.getContent()
+			.stream()
+			.map(ChatConversation::getProjectId)
+			.distinct()
+			.toList());
+		return PageResponse.from(page,
+				conversation -> ConversationSummaryResponse.from(conversation,
+						projectNames.getOrDefault(conversation.getProjectId(), "Unknown project")));
 	}
 
 	/** The conversations of a project, most recently used first. */

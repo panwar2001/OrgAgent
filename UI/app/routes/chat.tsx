@@ -1,11 +1,4 @@
-import {
-  DatabaseIcon,
-  MessageSquarePlusIcon,
-  SendIcon,
-  SparklesIcon,
-  Trash2Icon,
-  ZapIcon,
-} from "lucide-react";
+import { BookOpenIcon, MessageSquareIcon, SparklesIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import {
   Link,
@@ -15,387 +8,360 @@ import {
   useLocation,
   useNavigate,
   useParams,
+  useSearchParams,
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
-import { toast } from "sonner";
 
-import { EmptyState } from "~/components/empty-state";
+import { Composer } from "~/components/chat/composer";
+import { MessageBubble } from "~/components/chat/message-bubble";
+import { SessionRail } from "~/components/chat/session-rail";
 import { PageHeader } from "~/components/page-header";
-import { SubmitButton } from "~/components/submit-button";
+import { Alert, AlertDescription, AlertTitle } from "~/components/ui/alert";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "~/components/ui/card";
 import { Label } from "~/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/components/ui/select";
-import { Separator } from "~/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { Textarea } from "~/components/ui/textarea";
 import type { ActionResult } from "~/lib/api/server";
 import { api, attempt, load } from "~/lib/api/server";
-import type { ChatAnswer, ChatMessage } from "~/lib/api/types";
+import type { ChatAnswer, ChatMessage, ConversationSummary, Project } from "~/lib/api/types";
 import { errorOf, failure, fieldError } from "~/lib/forms";
+
+const SUGGESTIONS = [
+  "Summarise what this project's documents cover.",
+  "What are the main rules or policies described?",
+  "Which exceptions or edge cases do the documents mention?",
+];
 
 export async function loader({ context, params, request }: LoaderFunctionArgs) {
   const organizationId = params.organizationId!;
-  const projectId = params.projectId!;
-  const conversationId = new URL(request.url).searchParams.get("conversationId");
+  const url = new URL(request.url);
+  const conversationId = url.searchParams.get("c");
+  const projectFromUrl = url.searchParams.get("project");
 
   return load(async () => {
     const client = api(context);
-    const [project, conversations] = await Promise.all([
-      client.getProject(organizationId, projectId),
-      client.listConversations(organizationId, projectId, { size: 50 }),
+    const [organization, sessions, projects] = await Promise.all([
+      client.getOrganization(organizationId),
+      client.listOrganizationConversations(organizationId, { size: 60 }),
+      client.listProjects(organizationId, { size: 100 }),
     ]);
 
-    if (!conversationId) {
-      return { project, conversations, selected: null, window: null, history: null };
+    const selectedProjectId = projectFromUrl ?? undefined;
+
+    if (!conversationId || !selectedProjectId) {
+      return {
+        organization,
+        sessions,
+        projects,
+        activeId: null,
+        project: null,
+        history: [] as ChatMessage[],
+        liveTurns: [] as { role: string; content: string; at: string }[],
+        projectId: selectedProjectId,
+      };
     }
 
-    const [window, history] = await Promise.all([
-      client.getConversationWindow(organizationId, projectId, conversationId),
-      client.getConversationHistory(organizationId, projectId, conversationId, { size: 100 }),
+    const [history, window, project] = await Promise.all([
+      // 100 is the API's maximum page size, so a session shows its most recent 100 turns.
+      client.getConversationHistory(organizationId, selectedProjectId, conversationId, { size: 100 }),
+      client.getConversationWindow(organizationId, selectedProjectId, conversationId),
+      client.getProject(organizationId, selectedProjectId),
     ]);
-    return { project, conversations, selected: conversationId, window, history };
+
+    return {
+      organization,
+      sessions,
+      projects,
+      activeId: conversationId,
+      project,
+      history: history.content,
+      liveTurns: window.turns,
+      projectId: selectedProjectId,
+    };
   });
 }
 
 export async function action({ context, params, request }: ActionFunctionArgs) {
   const organizationId = params.organizationId!;
-  const projectId = params.projectId!;
-  const client = api(context);
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
+  const client = api(context);
 
-  switch (intent) {
-    case "ask": {
-      const question = String(form.get("question") ?? "").trim();
-      const conversationId = String(form.get("conversationId") ?? "").trim();
-      if (!question) {
-        return failure("VALIDATION_FAILED", "Request validation failed", [
-          { field: "question", message: "must not be blank" },
-        ]);
-      }
-      return attempt(() =>
-        client.ask(organizationId, projectId, {
-          question,
-          conversationId: conversationId || undefined,
-        }),
-      );
+  if (intent === "ask") {
+    const question = String(form.get("question") ?? "").trim();
+    const projectId = String(form.get("projectId") ?? "").trim();
+    const conversationId = String(form.get("conversationId") ?? "").trim();
+
+    if (!projectId) {
+      return failure("VALIDATION_FAILED", "Choose a project first", [
+        { field: "projectId", message: "a project is required to answer from documents" },
+      ]);
     }
-    case "delete-conversation": {
-      const conversationId = String(form.get("conversationId") ?? "");
-      const result = await attempt(async () => {
-        await client.deleteConversation(organizationId, projectId, conversationId);
-        return { deleted: true };
-      });
-      return result.ok ? redirect(`?`) : result;
+    if (!question) {
+      return failure("VALIDATION_FAILED", "Request validation failed", [
+        { field: "question", message: "must not be blank" },
+      ]);
     }
-    default:
-      return failure("INVALID_REQUEST", `Unknown intent '${intent}'`);
+
+    const result = await attempt(() =>
+      client.ask(organizationId, projectId, { question, conversationId: conversationId || undefined }),
+    );
+
+    // A brand new conversation only gets its id from the answer: adopt it so the session is real.
+    if (result.ok && !conversationId) {
+      return redirect(`/organizations/${organizationId}/chat?c=${result.data.conversationId}&project=${projectId}`);
+    }
+    return result;
   }
+
+  if (intent === "delete-conversation") {
+    const conversationId = String(form.get("conversationId") ?? "");
+    const projectId = String(form.get("projectId") ?? "");
+    const result = await attempt(async () => {
+      await client.deleteConversation(organizationId, projectId, conversationId);
+      return { deleted: true };
+    });
+    return result.ok ? redirect(`/organizations/${organizationId}/chat`) : result;
+  }
+
+  return failure("INVALID_REQUEST", `Unknown intent '${intent}'`);
 }
 
 export default function Chat() {
-  const { project, conversations, selected, window, history } = useLoaderData<typeof loader>();
+  const data = useLoaderData<typeof loader>();
   const params = useParams();
-  const navigate = useNavigate();
   const location = useLocation();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const fetcher = useFetcher<ActionResult<ChatAnswer>>();
-  const formRef = useRef<HTMLFormElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const composerAnchorRef = useRef<HTMLDivElement>(null);
 
   const answer = fetcher.data?.ok ? fetcher.data.data : undefined;
-  const asked = fetcher.formData?.get("question")?.toString();
-
-  // A brand new conversation only gets its id from the answer, so adopt it in the URL.
-  useEffect(() => {
-    if (answer && !selected) {
-      navigate(`${location.pathname}?conversationId=${answer.conversationId}`, { replace: true });
-    }
-  }, [answer, selected, navigate, location.pathname]);
-
-  useEffect(() => {
-    if (answer) formRef.current?.reset();
-  }, [answer]);
-
   const askError = errorOf(fetcher.data);
-  const messages: ChatMessage[] = history?.content ?? [];
-  const liveAnswer = answer && answer.conversationId === selected ? answer : undefined;
+  const pendingQuestion = fetcher.formData?.get("question")?.toString();
+  const pendingProjectId = fetcher.formData?.get("projectId")?.toString();
+
+  const messages = data.history;
+  const answeredInHistory =
+    answer && messages.some((message) => message.role === "ASSISTANT" && message.content === answer.answer);
+  const questionInHistory =
+    pendingQuestion && messages.some((message) => message.role === "USER" && message.content === pendingQuestion);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages.length, answer, fetcher.state]);
+
+  const projectId = data.projectId;
+  const activeProject = data.project;
+  const selectedProjectId = projectId ?? data.projects.content[0]?.id;
 
   return (
-    <>
-      <PageHeader
-        title={`${project.name} chat`}
-        description="Questions are answered from this project's documents only, with the last turns of the conversation replayed from Redis."
-        breadcrumb={[
-          { label: "Organizations", to: "/organizations" },
-          { label: "Project", to: `/organizations/${params.organizationId}/projects/${params.projectId}` },
-          { label: "Chat" },
-        ]}
-        actions={
-          <Button asChild size="sm" variant="outline">
-            <Link to={location.pathname} reloadDocument>
-              <MessageSquarePlusIcon data-icon="inline-start" />
-              New conversation
-            </Link>
-          </Button>
-        }
-      />
+    <div className="-m-4 flex h-[calc(100svh-0px)] min-h-0 lg:-m-8">
+      <aside className="hidden w-72 shrink-0 lg:block">
+        <SessionRail
+          organizationId={data.organization.id}
+          organizationName={data.organization.name}
+          sessions={data.sessions.content}
+          activeId={data.activeId ?? undefined}
+          projectId={selectedProjectId}
+        />
+      </aside>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_18rem]">
-        <Card className="flex min-h-[32rem] flex-col">
-          <CardHeader>
-            <CardTitle>Conversation</CardTitle>
-            <CardDescription>
-              {messages.length > 0
-                ? `${messages.length} logged turn(s) in Postgres`
-                : "Ask a question to start the conversation."}
-            </CardDescription>
-          </CardHeader>
+      <section className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex items-center justify-between gap-3 border-b px-4 py-3 lg:px-6">
+          <div className="min-w-0">
+            <p className="truncate font-heading text-sm font-semibold">
+              {activeProject ? activeProject.name : "New chat"}
+            </p>
+            <p className="truncate text-xs text-muted-foreground">
+              {data.organization.name} · {data.sessions.totalElements} session(s)
+              {activeProject ? ` · ${activeProject.slug}` : ""}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button asChild size="sm" variant="outline" className="lg:hidden">
+              <Link to={`/organizations/${data.organization.id}`}>
+                <MessageSquareIcon data-icon="inline-start" />
+                Sessions
+              </Link>
+            </Button>
+            <Button asChild size="sm" variant="ghost">
+              <Link to={`/organizations/${data.organization.id}/chat`}>New chat</Link>
+            </Button>
+          </div>
+        </div>
 
-          <CardContent className="flex-1 space-y-4">
-            {messages.length === 0 && !liveAnswer && (
-              <EmptyState
-                icon={SparklesIcon}
-                title="No messages yet"
-                description="Ask something the project's documents should be able to answer."
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 lg:px-6">
+            {messages.length === 0 && !answer && (
+              <NewChatPanel
+                organizationId={data.organization.id}
+                projects={data.projects.content}
+                selectedProjectId={selectedProjectId}
+                onSelectProject={(value) => {
+                  const next = new URLSearchParams(searchParams);
+                  next.set("project", value);
+                  setSearchParams(next, { replace: true });
+                }}
+                locationKey={location.key}
               />
             )}
 
             {messages.map((message) => (
-              <Bubble
+              <MessageBubble
                 key={message.id}
                 role={message.role}
                 content={message.content}
-                meta={
-                  message.role === "ASSISTANT"
-                    ? [
-                        message.model ?? "model",
-                        message.latencyMs !== null ? `${message.latencyMs} ms` : null,
-                        message.servedFromCache ? "semantic cache" : null,
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")
-                    : undefined
-                }
+                model={message.model}
+                latencyMs={message.latencyMs}
+                fromCache={message.servedFromCache}
               />
             ))}
 
-            {asked && <Bubble role="USER" content={asked} pending />}
+            {pendingQuestion && !questionInHistory && <MessageBubble role="USER" content={pendingQuestion} />}
+            {pendingQuestion && !answer && <MessageBubble role="ASSISTANT" content="" pending />}
 
-            {liveAnswer && (
-              <Bubble
+            {answer && !answeredInHistory && (
+              <MessageBubble
                 role="ASSISTANT"
-                content={liveAnswer.answer}
-                meta={[
-                  liveAnswer.model ?? "model",
-                  liveAnswer.latencyMs !== null ? `${liveAnswer.latencyMs} ms` : null,
-                  liveAnswer.fromCache ? "semantic cache" : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-                sources={liveAnswer.sources}
+                content={answer.answer}
+                model={answer.model}
+                latencyMs={answer.latencyMs}
+                fromCache={answer.fromCache}
+                sources={answer.sources}
               />
             )}
 
             {askError && (
-              <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm">
-                <p className="font-medium text-destructive">
-                  {askError.code === "BACKEND_UNREACHABLE" ? "Backend not reachable" : "Answer failed"}
-                </p>
-                <p className="text-muted-foreground">{askError.message}</p>
-              </div>
+              <Alert variant="destructive">
+                <AlertTitle>
+                  {askError.code === "BACKEND_UNREACHABLE" ? "Backend not reachable" : "Answer failed"} (
+                  {askError.code})
+                </AlertTitle>
+                <AlertDescription>
+                  <p>{askError.message}</p>
+                  {fieldError(fetcher.data, "projectId") && <p>{fieldError(fetcher.data, "projectId")}</p>}
+                </AlertDescription>
+              </Alert>
             )}
-          </CardContent>
 
-          <Separator />
-
-          <fetcher.Form method="post" ref={formRef} className="space-y-3 p-6">
-            <input type="hidden" name="intent" value="ask" />
-            {selected && <input type="hidden" name="conversationId" value={selected} />}
-            <div className="space-y-2">
-              <Label htmlFor="question">Question</Label>
-              <Textarea
-                id="question"
-                name="question"
-                rows={3}
-                placeholder="How long do refunds take?"
-                required
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-                    event.currentTarget.form?.requestSubmit();
-                  }
-                }}
-              />
-              {fieldError(fetcher.data, "question") && (
-                <p className="text-xs text-destructive">{fieldError(fetcher.data, "question")}</p>
-              )}
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">⌘/Ctrl + Enter to send</p>
-              <SubmitButton pending={fetcher.state !== "idle"}>
-                <SendIcon data-icon="inline-start" />
-                Ask
-              </SubmitButton>
-            </div>
-          </fetcher.Form>
-        </Card>
-
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Conversations</CardTitle>
-              <CardDescription>Pick up where a conversation left off.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {conversations.content.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No conversations yet.</p>
-              ) : (
-                <Select
-                  value={selected ?? undefined}
-                  onValueChange={(conversationId) => navigate(`?conversationId=${conversationId}`)}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a conversation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {conversations.content.map((conversation) => (
-                      <SelectItem key={conversation.id} value={conversation.id}>
-                        {conversation.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-
-              {selected && <DeleteConversation conversationId={selected} />}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Where the data lives</CardTitle>
-              <CardDescription>Redis serves the live window; Postgres is the system of record.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="window">
-                <TabsList className="w-full">
-                  <TabsTrigger value="window">
-                    <ZapIcon data-icon="inline-start" />
-                    Redis
-                  </TabsTrigger>
-                  <TabsTrigger value="log">
-                    <DatabaseIcon data-icon="inline-start" />
-                    Postgres
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="window" className="space-y-2 pt-3">
-                  {window?.turns.length ? (
-                    window.turns
-                      .slice()
-                      .reverse()
-                      .map((turn, index) => (
-                        <div key={index} className="rounded-md border p-2 text-xs">
-                          <span className="font-medium">{turn.role}</span>
-                          <p className="line-clamp-3 text-muted-foreground">{turn.content}</p>
-                        </div>
-                      ))
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      {selected ? "The live window is empty (or has expired)." : "Select a conversation."}
-                    </p>
-                  )}
-                </TabsContent>
-                <TabsContent value="log" className="space-y-2 pt-3">
-                  {messages.length ? (
-                    messages
-                      .slice(-10)
-                      .reverse()
-                      .map((message) => (
-                        <div key={message.id} className="rounded-md border p-2 text-xs">
-                          <span className="font-medium">{message.role}</span>
-                          <p className="line-clamp-3 text-muted-foreground">{message.content}</p>
-                        </div>
-                      ))
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      {selected ? "Nothing logged yet." : "Select a conversation."}
-                    </p>
-                  )}
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function Bubble({
-  role,
-  content,
-  meta,
-  sources,
-  pending,
-}: {
-  role: "USER" | "ASSISTANT" | "SYSTEM";
-  content: string;
-  meta?: string;
-  sources?: ChatAnswer["sources"];
-  pending?: boolean;
-}) {
-  const isUser = role === "USER";
-
-  return (
-    <div className={isUser ? "flex justify-end" : "flex justify-start"}>
-      <div
-        className={
-          isUser
-            ? "max-w-[85%] rounded-lg bg-primary px-4 py-2 text-primary-foreground"
-            : "max-w-[85%] space-y-2 rounded-lg border bg-muted/40 px-4 py-2"
-        }
-      >
-        <p className={pending ? "whitespace-pre-wrap opacity-60" : "whitespace-pre-wrap"}>{content}</p>
-
-        {meta && <p className="text-xs opacity-70">{meta}</p>}
-
-        {sources && sources.length > 0 && (
-          <div className="flex flex-wrap gap-1 pt-1">
-            {sources.map((source, index) => (
-              <Badge key={`${source.documentId ?? source.title}-${index}`} variant="outline">
-                {source.title}
-                {source.score !== null ? ` · ${source.score.toFixed(2)}` : ""}
-              </Badge>
-            ))}
+            <div ref={bottomRef} />
           </div>
-        )}
-      </div>
+        </div>
+
+        <div ref={composerAnchorRef}>
+          {selectedProjectId ? (
+            <Composer
+              organizationId={data.organization.id}
+              projectId={selectedProjectId}
+              conversationId={data.activeId ?? undefined}
+            />
+          ) : (
+            <div className="border-t p-4 text-center text-sm text-muted-foreground">
+              Create a project with documents before asking questions.
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
 
-function DeleteConversation({ conversationId }: { conversationId: string }) {
-  const fetcher = useFetcher<ActionResult<{ deleted: boolean }>>();
+function NewChatPanel({
+  organizationId,
+  projects,
+  selectedProjectId,
+  onSelectProject,
+  locationKey,
+}: {
+  organizationId: string;
+  projects: Project[];
+  selectedProjectId?: string;
+  onSelectProject: (value: string) => void;
+  locationKey: string;
+}) {
+  const fetcher = useFetcher<ActionResult<ChatAnswer>>();
 
-  const deleted = fetcher.data?.ok;
-  useEffect(() => {
-    if (deleted) toast.success("Conversation deleted");
-  }, [deleted]);
+  if (projects.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>No projects yet</CardTitle>
+          <CardDescription>
+            A chat answers from one project's documents, so create a project and ingest a file first.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild size="sm">
+            <Link to={`/organizations/${organizationId}`}>Go to projects</Link>
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <fetcher.Form
-      method="post"
-      onSubmit={(event) => {
-        if (!confirm("Delete this conversation, its live window and its log?")) event.preventDefault();
-      }}
-    >
-      <input type="hidden" name="intent" value="delete-conversation" />
-      <input type="hidden" name="conversationId" value={conversationId} />
-      <SubmitButton pending={fetcher.state !== "idle"} size="sm" variant="outline" className="w-full">
-        <Trash2Icon data-icon="inline-start" />
-        Delete conversation
-      </SubmitButton>
-    </fetcher.Form>
+    <div className="space-y-6 py-6">
+      <div className="space-y-2 text-center">
+        <div className="mx-auto flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <SparklesIcon className="size-5" />
+        </div>
+        <h2 className="font-heading text-xl font-semibold">Ask this project's documents</h2>
+        <p className="mx-auto max-w-md text-sm text-muted-foreground">
+          Answers are grounded in ingested files, cited, and never invented. Pick the project to ask about.
+        </p>
+      </div>
+
+      <div className="mx-auto w-full max-w-sm space-y-2">
+        <Label htmlFor="project-picker">Project</Label>
+        <Select value={selectedProjectId} onValueChange={onSelectProject}>
+          <SelectTrigger id="project-picker" className="w-full">
+            <SelectValue placeholder="Choose a project" />
+          </SelectTrigger>
+          <SelectContent>
+            {projects.map((project) => (
+              <SelectItem key={project.id} value={project.id}>
+                {project.name}
+                {project.status === "ARCHIVED" ? " (archived)" : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <fetcher.Form method="post" className="mx-auto grid w-full max-w-2xl gap-2 sm:grid-cols-3">
+        <input type="hidden" name="intent" value="ask" />
+        <input type="hidden" name="projectId" value={selectedProjectId ?? ""} />
+        {SUGGESTIONS.map((suggestion) => (
+          <Button
+            key={`${locationKey}-${suggestion}`}
+            type="submit"
+            name="question"
+            value={suggestion}
+            variant="outline"
+            disabled={!selectedProjectId || fetcher.state !== "idle"}
+            className="h-auto justify-start px-3 py-2.5 text-left text-xs font-normal whitespace-normal"
+          >
+            <BookOpenIcon data-icon="inline-start" />
+            {suggestion}
+          </Button>
+        ))}
+      </fetcher.Form>
+
+      {errorOf(fetcher.data) && (
+        <Alert variant="destructive">
+          <AlertTitle>{errorOf(fetcher.data)?.code}</AlertTitle>
+          <AlertDescription>{errorOf(fetcher.data)?.message}</AlertDescription>
+        </Alert>
+      )}
+
+      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+        <Badge variant="outline">knowledge base: the selected project</Badge>
+        <Badge variant="outline">citations included</Badge>
+      </div>
+    </div>
   );
 }

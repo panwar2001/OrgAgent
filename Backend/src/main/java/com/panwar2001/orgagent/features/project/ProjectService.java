@@ -1,6 +1,9 @@
 package com.panwar2001.orgagent.features.project;
 
+import java.util.Collection;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import com.panwar2001.orgagent.core.exception.ConflictException;
 import com.panwar2001.orgagent.core.exception.ErrorCode;
@@ -91,6 +94,17 @@ public class ProjectService {
 	@Transactional
 	public void delete(UUID organizationId, UUID projectId) {
 		this.repository.delete(require(organizationId, projectId));
+	}
+
+	/** Names of the given projects, keyed by id; unknown ids simply do not appear. */
+	@Transactional(readOnly = true)
+	public Map<UUID, String> namesById(Collection<UUID> projectIds) {
+		if (projectIds.isEmpty()) {
+			return Map.of();
+		}
+		return this.repository.findAllById(projectIds)
+			.stream()
+			.collect(Collectors.toMap(Project::getId, Project::getName));
 	}
 
 	/** Number of projects an organization owns, used by organization-level reporting. */

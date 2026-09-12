@@ -165,7 +165,7 @@ export default function ProjectDetail() {
           <>
             <StatusBadge status={project.status} />
             <Button asChild size="sm">
-              <Link to={`/organizations/${params.organizationId}/projects/${project.id}/chat`}>
+              <Link to={`/organizations/${params.organizationId}/chat?project=${project.id}`}>
                 <MessageSquareIcon data-icon="inline-start" />
                 Open chat
               </Link>
