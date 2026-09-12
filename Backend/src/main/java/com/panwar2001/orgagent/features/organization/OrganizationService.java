@@ -42,6 +42,21 @@ public class OrganizationService {
 		return OrganizationResponse.from(require(organizationId));
 	}
 
+	/**
+	 * Looks an organization up by its slug.
+	 *
+	 * <p>The console derives one slug per signed-in user, so this is how it finds that user's
+	 * organization without keeping a mapping of its own.
+	 *
+	 * @throws ResourceNotFoundException when no organization uses the slug
+	 */
+	@Transactional(readOnly = true)
+	public OrganizationResponse getBySlug(String slug) {
+		return OrganizationResponse.from(this.repository.findBySlug(slug)
+			.orElseThrow(() -> new ResourceNotFoundException(ErrorCode.ORGANIZATION_NOT_FOUND,
+					"No organization with slug '%s'".formatted(slug))));
+	}
+
 	@Transactional(readOnly = true)
 	public PageResponse<OrganizationResponse> list(Pageable pageable) {
 		Page<Organization> page = this.repository.findAll(pageable);

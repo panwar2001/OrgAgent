@@ -49,6 +49,12 @@ public class OrganizationController {
 		return this.service.list(Pagination.of(page, size, "name"));
 	}
 
+	@GetMapping("/by-slug/{slug}")
+	@Operation(summary = "Read one organization account by its slug")
+	public OrganizationResponse getBySlug(@PathVariable String slug) {
+		return this.service.getBySlug(slug);
+	}
+
 	@GetMapping("/{organizationId}")
 	@Operation(summary = "Read one organization account")
 	public OrganizationResponse get(@PathVariable UUID organizationId) {
