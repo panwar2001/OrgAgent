@@ -245,6 +245,14 @@ Decisions worth flagging:
   `settings.gradle.kts` and `repositories` in `build.gradle.kts`.
 - **Third-party versions live in plain script values** (`springAiVersion`, `springdocVersion`) rather
   than `extra` + `property(...)`, so an IDE reading the script resolves them without a property lookup.
+- **The Gradle wrapper is pinned to 9.2.1, not the newest Gradle.** From Gradle 9.5 the distribution
+  ships `lib/kotlin-compiler-embeddable.properties`; IntelliJ puts that file on the classpath it builds
+  for Kotlin DSL script definitions and then fails to open it as a jar
+  (`java.util.zip.ZipException: zip END header not found` in `KotlinDslScriptSyncContributor`). The
+  script model never resolves, so **every dependency and reference in `build.gradle.kts` shows as
+  unresolved in the editor** while the command line build is perfectly fine. 9.2.1 has no
+  `.properties` files in `lib/`. Raise the version only together with an IDE that handles it; the
+  reason is documented in `gradle/wrapper/gradle-wrapper.properties`.
 
 ## Possible next steps
 
