@@ -55,12 +55,17 @@ spring:
   ai:
     google:
       genai:
+        # Required. Without a key the client falls back to Vertex AI and demands a project-id,
+        # which fails at startup with a message that has nothing to do with the real cause.
         api-key: ${GEMINI_API_KEY:}
         chat:
           model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash}
           temperature: 0.2
           max-output-tokens: 2048
         embedding:
+          # The embedding connection keeps its own key: it does not inherit the one above, and
+          # an empty value here makes the auto-configuration switch to Vertex AI.
+          api-key: ${GEMINI_API_KEY:}
           text:
             model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-001}
             dimensions: ${EMBEDDING_DIMENSIONS:768}

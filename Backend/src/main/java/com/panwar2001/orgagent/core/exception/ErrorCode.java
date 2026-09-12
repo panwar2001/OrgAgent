@@ -41,7 +41,7 @@ public enum ErrorCode {
 	// ---- 500 / 502 / 503 ----
 	INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected error occurred"),
 	INGESTION_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "The document could not be ingested"),
-	EMBEDDING_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "The text could not be embedded"),
+	EMBEDDING_FAILED(HttpStatus.BAD_GATEWAY, "The text could not be embedded by the AI provider"),
 	LLM_FAILED(HttpStatus.BAD_GATEWAY, "The language model could not produce a response"),
 	AI_SERVICE_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "The AI provider is currently unavailable");
 

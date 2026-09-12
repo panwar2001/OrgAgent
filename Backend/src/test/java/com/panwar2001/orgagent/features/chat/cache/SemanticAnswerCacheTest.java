@@ -66,6 +66,15 @@ class SemanticAnswerCacheTest {
 	}
 
 	@Test
+	void degradesToAMissWhenTheCacheCannotBeRead() {
+		// A cache is an optimisation: a provider or store outage must not fail the chat turn.
+		when(this.cacheStore.similaritySearch(any(SearchRequest.class)))
+			.thenThrow(new IllegalStateException("400 API key not valid"));
+
+		assertThat(cache.find(this.organizationId, this.projectId, "question")).isEmpty();
+	}
+
+	@Test
 	void reportsAMissWhenNothingIsSimilarEnough() {
 		when(this.cacheStore.similaritySearch(any(SearchRequest.class))).thenReturn(List.of());
 

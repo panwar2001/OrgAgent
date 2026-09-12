@@ -35,3 +35,8 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Local environment (secrets: GEMINI_API_KEY, DB passwords) ###
+.env
+.env.*
+!.env.example

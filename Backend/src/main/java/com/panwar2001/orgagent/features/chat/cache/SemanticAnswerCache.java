@@ -80,7 +80,16 @@ public class SemanticAnswerCache {
 			.filterExpression(new FilterExpressionBuilder().eq(META_PROJECT_ID, projectId.toString()).build())
 			.build();
 
-		List<Document> matches = this.cacheStore.similaritySearch(request);
+		List<Document> matches;
+		try {
+			matches = this.cacheStore.similaritySearch(request);
+		}
+		catch (RuntimeException failure) {
+			// A cache is an optimisation: if it cannot be read, answer the question anyway.
+			log.warn("Semantic cache lookup failed, continuing without it: {}", failure.getMessage());
+			return Optional.empty();
+		}
+
 		if (matches.isEmpty()) {
 			return Optional.empty();
 		}

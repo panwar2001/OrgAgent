@@ -5,6 +5,8 @@ import java.util.UUID;
 
 import com.panwar2001.orgagent.core.config.OrgAgentProperties;
 import com.panwar2001.orgagent.core.config.VectorStoreConfig;
+import com.panwar2001.orgagent.core.exception.ErrorCode;
+import com.panwar2001.orgagent.core.exception.LlmException;
 
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -54,10 +56,17 @@ public class RagRetriever {
 			.filterExpression(new FilterExpressionBuilder().eq(META_PROJECT_ID, projectId.toString()).build())
 			.build();
 
-		List<RetrievedChunk> chunks = this.vectorStore.similaritySearch(request)
-			.stream()
-			.map(RagRetriever::toChunk)
-			.toList();
+		List<org.springframework.ai.document.Document> matches;
+		try {
+			matches = this.vectorStore.similaritySearch(request);
+		}
+		catch (RuntimeException failure) {
+			// The store embeds the question before searching, so a provider outage surfaces here.
+			throw new LlmException(ErrorCode.EMBEDDING_FAILED,
+					"The question could not be embedded for retrieval", failure);
+		}
+
+		List<RetrievedChunk> chunks = matches.stream().map(RagRetriever::toChunk).toList();
 		log.debug("Retrieved {} passage(s) for project {}", chunks.size(), projectId);
 		return chunks;
 	}
