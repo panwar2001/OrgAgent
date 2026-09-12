@@ -26,3 +26,8 @@ replay_pid*
 ### IDE / OS noise ###
 .DS_Store
 .idea/
+
+### Demo recordings (host them, don't commit them) ###
+*.mp4
+*.mov
+*.webm
