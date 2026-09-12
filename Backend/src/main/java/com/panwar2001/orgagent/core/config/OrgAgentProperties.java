@@ -33,12 +33,15 @@ public record OrgAgentProperties(@Valid Rag rag, @Valid Cache cache, @Valid Inge
 	 * @param chatWindowTtl TTL of the live Redis conversation window
 	 * @param retrievalTopK chunks pulled out of pgvector per question
 	 * @param retrievalSimilarityThreshold minimum cosine similarity for a chunk to be used
+	 * @param embeddingDimensions width of the vectors stored in pgvector; must match the
+	 * embedding model and the column definition in the migrations
 	 */
 	public record Rag(
 			@DefaultValue("20") @Min(1) @Max(200) int chatWindowSize,
 			@DefaultValue("PT24H") @NotNull Duration chatWindowTtl,
 			@DefaultValue("6") @Min(1) @Max(50) int retrievalTopK,
-			@DefaultValue("0.6") @Positive double retrievalSimilarityThreshold) {
+			@DefaultValue("0.6") @Positive double retrievalSimilarityThreshold,
+			@DefaultValue("768") @Min(64) @Max(4096) int embeddingDimensions) {
 	}
 
 	/** Semantic cache tuning. */

@@ -24,7 +24,7 @@ class OrgAgentPropertiesTest {
 
 	@Test
 	void rejectsAWindowTooSmallToCarryConversationContext() {
-		OrgAgentProperties properties = new OrgAgentProperties(new OrgAgentProperties.Rag(0, Duration.ofHours(1), 6, 0.6),
+		OrgAgentProperties properties = new OrgAgentProperties(new OrgAgentProperties.Rag(0, Duration.ofHours(1), 6, 0.6, 768),
 				TestProperties.defaultCache(), TestProperties.defaultIngestion(), TestProperties.defaultCors());
 
 		assertThat(validator.validate(properties)).extracting(v -> v.getPropertyPath().toString())
@@ -33,7 +33,7 @@ class OrgAgentPropertiesTest {
 
 	@Test
 	void rejectsRetrievalThatWouldPullNothingBack() {
-		OrgAgentProperties properties = new OrgAgentProperties(new OrgAgentProperties.Rag(20, Duration.ofHours(1), 0, 0.6),
+		OrgAgentProperties properties = new OrgAgentProperties(new OrgAgentProperties.Rag(20, Duration.ofHours(1), 0, 0.6, 768),
 				TestProperties.defaultCache(), TestProperties.defaultIngestion(), TestProperties.defaultCors());
 
 		assertThat(validator.validate(properties)).extracting(v -> v.getPropertyPath().toString())

@@ -64,15 +64,8 @@ spring:
           text:
             model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-001}
             dimensions: ${EMBEDDING_DIMENSIONS:768}
-    vectorstore:
-      pgvector:
-        # The schema is created by Flyway (V1__init.sql); Spring AI must not fight it.
-        initialize-schema: false
-        schema-name: public
-        table-name: document_embeddings
-        dimensions: ${EMBEDDING_DIMENSIONS:768}
-        distance-type: COSINE_DISTANCE
-        index-type: HNSW
+    # The pgvector stores are declared in core/config/VectorStoreConfig: this service needs two of
+    # them (document chunks and the semantic answer cache) and Flyway owns their tables.
 
 server:
   port: ${SERVER_PORT:8080}
@@ -105,6 +98,8 @@ orgagent:
     retrieval-top-k: ${RETRIEVAL_TOP_K:6}
     # Minimum cosine similarity (0..1) a retrieved chunk must have to be used.
     retrieval-similarity-threshold: ${RETRIEVAL_SIMILARITY_THRESHOLD:0.6}
+    # Must match the embedding model and the vector columns created by the migrations.
+    embedding-dimensions: ${EMBEDDING_DIMENSIONS:768}
   cache:
     semantic:
       enabled: ${SEMANTIC_CACHE_ENABLED:true}

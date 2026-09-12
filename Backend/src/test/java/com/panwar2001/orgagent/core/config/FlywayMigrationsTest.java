@@ -108,6 +108,25 @@ class FlywayMigrationsTest {
 		assertThat(sql).contains("REFERENCES projects (id) ON DELETE CASCADE");
 	}
 
+	@Test
+	void theThirdMigrationCreatesConversationsTheLogAndTheSemanticCache() {
+		String sql = read(migration("V3__chat.sql"));
+
+		assertThat(sql).contains("CREATE TABLE chat_conversations");
+		assertThat(sql).contains("CREATE TABLE chat_messages");
+		assertThat(sql).contains("CREATE TABLE chat_semantic_cache");
+		assertThat(sql).contains("REFERENCES chat_conversations (id) ON DELETE CASCADE");
+	}
+
+	@Test
+	void theSemanticCacheKeepsTheAnswerAndWhyItWasServed() {
+		String sql = read(migration("V3__chat.sql"));
+
+		assertThat(sql).contains("served_from_cache").contains("latency_ms").contains("model");
+		assertThat(sql).contains("embedding  vector(768)");
+		assertThat(sql).contains("USING hnsw (embedding vector_cosine_ops)");
+	}
+
 	private List<Path> migrationFiles() {
 		try (Stream<Path> files = Files.list(MIGRATION_DIRECTORY)) {
 			return files.filter(path -> path.getFileName().toString().endsWith(".sql")).sorted().toList();

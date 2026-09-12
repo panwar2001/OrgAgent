@@ -16,7 +16,7 @@ public final class TestProperties {
 	}
 
 	public static OrgAgentProperties.Rag defaultRag() {
-		return new OrgAgentProperties.Rag(20, Duration.ofHours(24), 6, 0.6);
+		return new OrgAgentProperties.Rag(20, Duration.ofHours(24), 6, 0.6, 768);
 	}
 
 	public static OrgAgentProperties.Cache defaultCache() {
