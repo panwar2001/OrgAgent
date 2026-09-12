@@ -41,10 +41,10 @@ export default function AppShell() {
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
+                `relative flex items-center gap-2 rounded-md px-3 py-2 text-sm transition-colors ${
                   isActive
-                    ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-                    : "hover:bg-sidebar-accent/60"
+                    ? "font-medium text-sidebar-accent-foreground before:absolute before:top-1.5 before:bottom-1.5 before:-left-4 before:w-0.5 before:rounded-full before:bg-sidebar-primary"
+                    : "text-sidebar-foreground/80 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                 }`
               }
             >
@@ -59,8 +59,10 @@ export default function AppShell() {
             <p className="text-muted-foreground">Organization</p>
             {organization ? (
               <>
-                <p className="truncate font-medium text-foreground">{organization.name}</p>
-                <StatusBadge status={organization.status} />
+                <p className="flex items-center gap-1.5">
+                  <span className="truncate font-medium text-foreground">{organization.name}</span>
+                  <StatusBadge status={organization.status} />
+                </p>
               </>
             ) : (
               <>
@@ -72,10 +74,9 @@ export default function AppShell() {
             )}
           </div>
 
-          <div className="space-y-1 rounded-md border border-sidebar-border p-3 text-xs">
-            <p className="font-medium">Backend</p>
-            <p className="break-all text-muted-foreground">{apiBaseUrl}</p>
-          </div>
+          <p className="truncate px-1 text-[10px] text-muted-foreground/70" title={apiBaseUrl}>
+            API {apiBaseUrl}
+          </p>
         </div>
       </aside>
 
