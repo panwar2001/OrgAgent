@@ -46,6 +46,12 @@ spring:
           max-idle: 8
           min-idle: 2
 
+  servlet:
+    multipart:
+      # Kept in step with orgagent.ingestion.max-file-size.
+      max-file-size: ${INGESTION_MAX_FILE_SIZE:25MB}
+      max-request-size: ${INGESTION_MAX_REQUEST_SIZE:30MB}
+
   ai:
     google:
       genai:

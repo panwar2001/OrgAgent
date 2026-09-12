@@ -78,6 +78,36 @@ class FlywayMigrationsTest {
 		assertThat(sql).contains("created_at  timestamptz").contains("updated_at  timestamptz");
 	}
 
+	@Test
+	void theSecondMigrationCreatesDocumentsAndTheVectorTable() {
+		String sql = read(migration("V2__documents_and_embeddings.sql"));
+
+		assertThat(sql).contains("CREATE EXTENSION IF NOT EXISTS vector");
+		assertThat(sql).contains("CREATE TABLE documents");
+		assertThat(sql).contains("CONSTRAINT uq_documents_project_content_hash UNIQUE (project_id, content_hash)");
+		assertThat(sql).contains("CREATE TABLE document_embeddings");
+	}
+
+	@Test
+	void theVectorTableMatchesWhatThePgVectorStoreExpects() {
+		String sql = read(migration("V2__documents_and_embeddings.sql"));
+
+		// Columns and their types are dictated by Spring AI's PgVectorStore, which is configured
+		// with initialize-schema=false and table-name=document_embeddings.
+		assertThat(sql).contains("id         uuid PRIMARY KEY");
+		assertThat(sql).contains("content    text");
+		assertThat(sql).contains("metadata   json");
+		assertThat(sql).contains("embedding  vector(768)");
+		assertThat(sql).contains("USING hnsw (embedding vector_cosine_ops)");
+	}
+
+	@Test
+	void embeddedChunksAreDeletedWithTheirProject() {
+		String sql = read(migration("V2__documents_and_embeddings.sql"));
+
+		assertThat(sql).contains("REFERENCES projects (id) ON DELETE CASCADE");
+	}
+
 	private List<Path> migrationFiles() {
 		try (Stream<Path> files = Files.list(MIGRATION_DIRECTORY)) {
 			return files.filter(path -> path.getFileName().toString().endsWith(".sql")).sorted().toList();
