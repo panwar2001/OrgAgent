@@ -43,7 +43,7 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
 
   // The chat sits outside the app shell, so it enforces the sign-in gate itself.
   const env = workerEnv(context);
-  const user = await requireUser(request, env);
+  const user = await requireUser({ context, request, params } as LoaderFunctionArgs);
 
   return load(async () => {
     const client = api(context);
@@ -57,8 +57,7 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
 
     if (!conversationId || !selectedProjectId) {
       return {
-        user: user ?? null,
-        authConfigured: Boolean(authConfig(env)),
+          authConfigured: Boolean(authConfig(env)),
         organization,
         sessions,
         projects,
@@ -78,7 +77,6 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
     ]);
 
     return {
-      user: user ?? null,
       authConfigured: Boolean(authConfig(env)),
       organization,
       sessions,
@@ -176,7 +174,7 @@ export default function Chat() {
             {data.organization.name}
           </Link>
         </Button>
-        <UserMenu user={data.user} authConfigured={data.authConfigured} />
+        <UserMenu authConfigured={data.authConfigured} />
       </header>
 
       <div className="flex min-h-0 flex-1">

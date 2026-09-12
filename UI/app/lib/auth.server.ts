@@ -1,109 +1,73 @@
-import { createCookie, redirect } from "react-router";
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { clerkMiddleware, getAuth } from "@clerk/react-router/server";
+import { redirect, type LoaderFunctionArgs, type MiddlewareFunction } from "react-router";
+
+import { workerEnv } from "~/lib/api/server";
 
 /**
- * Sign-in for the console.
+ * Sign-in for the console, backed by Clerk.
  *
- * Scope: this gates the UI only. The Spring Boot API is still open, so a session decides which
- * organization the console shows and who the user appears to be; it is not a security boundary yet.
- * When the API grows authorization of its own, the same ID token can be forwarded to it as a bearer
- * token from here.
+ * Clerk owns the provider round trip, the session and its refresh, and the sign-in UI, so there is
+ * no Google Cloud console to configure and no client secret of ours to store: Clerk's shared Google
+ * credentials work in development, and you can attach your own later.
  *
- * Sign-in activates as soon as GOOGLE_CLIENT_ID is configured. Without it the console stays usable
+ * Scope is still the UI. The Spring Boot API is open, so a session decides which console you see,
+ * not what the API will do. When the API enforces authorization, forward Clerk's session token to it
+ * as a bearer token — Spring Security can verify it against Clerk's JWKS.
+ *
+ * Sign-in activates as soon as both Clerk keys are configured. Without them the console stays usable
  * and says so, rather than locking people out of an app whose API is open anyway.
  */
 
-export const SESSION_COOKIE = "orgagent_session";
-
-/** The signed-in user, as Google describes them. */
-export interface SessionUser {
-  sub: string;
-  email: string;
-  name: string;
-  picture?: string;
-}
-
 export interface AuthConfig {
-  clientId: string;
-  sessionSecret: string;
+  publishableKey: string;
+  secretKey: string;
 }
 
-/** Google publishes the keys it signs ID tokens with; `jose` caches them. */
-const googleKeys = createRemoteJWKSet(new URL("https://www.googleapis.com/oauth2/v3/certs"));
+/** The signed-in identity this app needs from Clerk. */
+export interface SessionUser {
+  userId: string;
+}
+
+/** Clerk's public key, safe to hand to the browser. */
+export function clerkPublishableKey(env: Partial<Env> | undefined): string | undefined {
+  return env?.CLERK_PUBLISHABLE_KEY?.trim() || undefined;
+}
 
 export function authConfig(env: Partial<Env> | undefined): AuthConfig | undefined {
-  const clientId = env?.GOOGLE_CLIENT_ID?.trim();
-  if (!env || !clientId) {
-    return undefined;
-  }
-  // With no explicit secret the cookie is still signed, using a value derived from the client id.
-  // That stops hand-edited cookies but is not a substitute for a real secret: set SESSION_SECRET.
-  const sessionSecret = env.SESSION_SECRET?.trim() || `derived:${clientId}`;
-  return { clientId, sessionSecret };
+  const publishableKey = clerkPublishableKey(env);
+  const secretKey = env?.CLERK_SECRET_KEY?.trim();
+  return publishableKey && secretKey ? { publishableKey, secretKey } : undefined;
 }
 
-export function sessionCookie(config: AuthConfig) {
-  return createCookie(SESSION_COOKIE, {
-    path: "/",
-    httpOnly: true,
-    sameSite: "lax",
-    secure: true,
-    secrets: [config.sessionSecret],
-    maxAge: 60 * 60 * 24 * 7,
-  });
-}
+const clerk = clerkMiddleware();
 
-/** Verifies a Google ID token: signature, issuer, audience and verified email. */
-export async function verifyGoogleIdToken(credential: string, clientId: string): Promise<SessionUser> {
-  const { payload } = await jwtVerify(credential, googleKeys, {
-    issuer: ["https://accounts.google.com", "accounts.google.com"],
-    audience: clientId,
-  });
-
-  const sub = typeof payload.sub === "string" ? payload.sub : undefined;
-  const email = typeof payload.email === "string" ? payload.email : undefined;
-  if (!sub || !email) {
-    throw new Error("Google did not return an email address for this account");
+/**
+ * Attaches Clerk's session to the request.
+ *
+ * Wrapped so it is a no-op until keys are configured: `clerkMiddleware()` throws on a deployment
+ * without them, and the console has to keep working before sign-in is set up.
+ */
+export const clerkAuthMiddleware: MiddlewareFunction<Response> = async (args, next) => {
+  if (!authConfig(workerEnv(args.context))) {
+    return next();
   }
-  if (payload.email_verified === false) {
-    throw new Error("Google reports this email address as unverified");
-  }
+  return clerk(args, next);
+};
 
-  return {
-    sub,
-    email,
-    name: typeof payload.name === "string" ? payload.name : email,
-    picture: typeof payload.picture === "string" ? payload.picture : undefined,
-  };
-}
-
-/** The signed-in user, or undefined when there is no valid session. */
-export async function currentUser(request: Request, env: Partial<Env> | undefined): Promise<SessionUser | undefined> {
-  const config = authConfig(env);
-  if (!config) {
+/**
+ * The signed-in user, or undefined when sign-in is not configured.
+ *
+ * @throws a redirect to /login when sign-in is configured and the visitor has no session
+ */
+export async function requireUser(args: LoaderFunctionArgs): Promise<SessionUser | undefined> {
+  if (!authConfig(workerEnv(args.context))) {
     return undefined;
   }
-  const value = await sessionCookie(config).parse(request.headers.get("Cookie"));
-  if (!value || typeof value !== "object") {
-    return undefined;
-  }
-  const candidate = value as Partial<SessionUser>;
-  if (typeof candidate.email !== "string" || typeof candidate.sub !== "string") {
-    return undefined;
-  }
-  return { sub: candidate.sub, email: candidate.email, name: candidate.name ?? candidate.email, picture: candidate.picture };
-}
 
-/** Sends an unauthenticated visitor to the sign-in page, remembering where they were going. */
-export async function requireUser(request: Request, env: Partial<Env> | undefined): Promise<SessionUser | undefined> {
-  const config = authConfig(env);
-  if (!config) {
-    return undefined;
-  }
-  const user = await currentUser(request, env);
-  if (!user) {
-    const url = new URL(request.url);
+  const { userId } = await getAuth(args);
+  if (!userId) {
+    const url = new URL(args.request.url);
     throw redirect(`/login?next=${encodeURIComponent(`${url.pathname}${url.search}`)}`);
   }
-  return user;
+  return { userId };
 }

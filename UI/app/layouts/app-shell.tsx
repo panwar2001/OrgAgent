@@ -7,11 +7,11 @@ import { requireUser, authConfig } from "~/lib/auth.server";
 import { apiBaseUrl, workerEnv } from "~/lib/api/server";
 import { cn } from "~/lib/utils";
 
-export async function loader({ context, request }: LoaderFunctionArgs) {
-  const env = workerEnv(context);
-  // Sign-in is required only once GOOGLE_CLIENT_ID is configured; until then the console is open.
-  const user = await requireUser(request, env);
-  return { apiBaseUrl: apiBaseUrl(context), user: user ?? null, authConfigured: Boolean(authConfig(env)) };
+export async function loader(args: LoaderFunctionArgs) {
+  const env = workerEnv(args.context);
+  // Sign-in is required only once Clerk keys are configured; until then the console is open.
+  const user = await requireUser(args);
+  return { apiBaseUrl: apiBaseUrl(args.context), signedIn: Boolean(user), authConfigured: Boolean(authConfig(env)) };
 }
 
 const NAV = [
@@ -20,7 +20,7 @@ const NAV = [
 ];
 
 export default function AppShell() {
-  const { apiBaseUrl, user, authConfigured } = useLoaderData<typeof loader>();
+  const { apiBaseUrl, authConfigured } = useLoaderData<typeof loader>();
 
   return (
     <div className="grid min-h-svh grid-cols-1 lg:grid-cols-[16rem_1fr]">
@@ -81,7 +81,7 @@ export default function AppShell() {
 
       <div className="flex min-w-0 flex-col">
         <header className="flex items-center justify-end gap-2 border-b bg-background/80 px-4 py-2.5 backdrop-blur lg:px-6">
-          <UserMenu user={user} authConfigured={authConfigured} />
+          <UserMenu authConfigured={authConfigured} />
         </header>
         <main className="min-w-0 flex-1 p-4 lg:p-8">
           <Outlet />

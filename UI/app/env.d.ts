@@ -1,13 +1,14 @@
 /**
- * Bindings that are configured per environment rather than declared in wrangler.jsonc.
+ * Bindings configured per environment rather than in wrangler.jsonc.
  *
- * Google sign-in stays off until GOOGLE_CLIENT_ID is present, so both are optional:
- *   .dev.vars locally, and `wrangler secret put` for SESSION_SECRET in a deployment.
+ * Clerk's publishable key is public and may be a plain var; the secret key must be a secret
+ * (`wrangler secret put CLERK_SECRET_KEY`). Sign-in stays off, and the console stays usable,
+ * until both are present.
  */
 declare global {
   interface Env {
-    GOOGLE_CLIENT_ID?: string;
-    SESSION_SECRET?: string;
+    CLERK_PUBLISHABLE_KEY?: string;
+    CLERK_SECRET_KEY?: string;
   }
 }
 

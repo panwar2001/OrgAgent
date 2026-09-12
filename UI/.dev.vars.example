@@ -3,11 +3,8 @@
 
 API_BASE_URL=http://127.0.0.1:8080
 
-# Google sign-in. Leave GOOGLE_CLIENT_ID unset to run the console without sign-in.
-# Create an OAuth client of type "Web application" in the Google Cloud console and add
-# http://localhost:5173 (and your deployed origin) as an authorized JavaScript origin.
-GOOGLE_CLIENT_ID=
-
-# Signs the session cookie. Use a long random value; set it with
-# `wrangler secret put SESSION_SECRET` for a deployment.
-SESSION_SECRET=
+# Clerk sign-in. Both keys come from https://dashboard.clerk.com (create a free app).
+# Clerk ships shared Google credentials, so there is no Google Cloud console setup.
+# Leave them unset to run the console without sign-in.
+CLERK_PUBLISHABLE_KEY=
+CLERK_SECRET_KEY=

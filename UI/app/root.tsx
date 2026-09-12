@@ -1,3 +1,4 @@
+import { ClerkProvider } from "@clerk/react-router";
 import {
   isRouteErrorResponse,
   Links,
@@ -5,15 +6,26 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
   useRouteError,
+  type LoaderFunctionArgs,
 } from "react-router";
 
 import { RouteError } from "~/components/route-error";
+import { clerkAuthMiddleware, clerkPublishableKey } from "~/lib/auth.server";
+import { workerEnv } from "~/lib/api/server";
 import { Toaster } from "~/components/ui/sonner";
 import "./app.css";
 
 // Follow the OS colour scheme: the shadcn tokens switch on the `.dark` class.
 const THEME_SCRIPT = `try{if(window.matchMedia("(prefers-color-scheme: dark)").matches){document.documentElement.classList.add("dark")}}catch(e){}`;
+
+/** Clerk attaches the session to the request here; a no-op until keys are configured. */
+export const middleware = [clerkAuthMiddleware];
+
+export function loader({ context }: LoaderFunctionArgs) {
+  return { clerkPublishableKey: clerkPublishableKey(workerEnv(context)) ?? null };
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -36,11 +48,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return (
+  const { clerkPublishableKey } = useLoaderData<typeof loader>();
+
+  const content = (
     <>
       <Outlet />
       <Toaster position="top-right" />
     </>
+  );
+
+  // Without a publishable key Clerk cannot mount, so the console runs without sign-in instead.
+  return clerkPublishableKey ? (
+    <ClerkProvider publishableKey={clerkPublishableKey}>{content}</ClerkProvider>
+  ) : (
+    content
   );
 }
 
