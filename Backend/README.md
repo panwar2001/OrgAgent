@@ -122,7 +122,7 @@ curl -s localhost:8080/api/v1/organizations/$ORG/projects/$PROJECT/chat \
   "answer": "Refunds are processed within five working days. (Refund policy)",
   "fromCache": false,
   "sources": [{ "documentId": "…", "title": "Refund policy", "score": 0.91 }],
-  "model": "gemini-2.5-flash",
+  "model": "gemini-3.6-flash",
   "latencyMs": 812,
   "answeredAt": "2026-01-01T00:00:00Z"
 }
@@ -231,9 +231,13 @@ Decisions worth flagging:
   paragraph-aware, hard-cuts oversized paragraphs and never exceeds the configured size.
 - **`PgVectorStore` is configured in code, not properties.** The service needs two stores (documents
   and the answer cache); Spring AI's auto-configuration creates one.
-- **The semantic cache is a second vector store, not a Redis structure.** It reuses the same
-  embedding model, gets the same cosine-similarity semantics as retrieval, and does not need a
-  separate search engine.
+- **The semantic cache embeds the question itself instead of going through a vector store.**
+  The embedding model uses different task types for documents (`RETRIEVAL_DOCUMENT`) and queries
+  (`RETRIEVAL_QUERY`), and the same text scores about 0.925 across the two — below the cache
+  threshold. A cache that stored entries through `VectorStore.add` would therefore embed them as
+  documents and could never recognise even an identical question. `SemanticAnswerCache` embeds the
+  question the same way on write and on read and compares with pgvector directly, while retrieval
+  keeps its document/query asymmetry.
 - **Documents are committed before embedding.** A crash mid-ingestion leaves a `FAILED` row with the
   reason instead of an invisible gap between "uploaded" and "searchable".
 - **Spring Boot is pinned to a released version (4.1.1), not a snapshot.** `spring init` had selected
@@ -254,9 +258,20 @@ Decisions worth flagging:
   `.properties` files in `lib/`. Raise the version only together with an IDE that handles it; the
   reason is documented in `gradle/wrapper/gradle-wrapper.properties`.
 
+## Known limitation
+
+A short follow-up is embedded verbatim, so retrieval sees it without its context. Asked straight
+after "How long do refunds take for the Orion plan?", the question "And what about gift cards?"
+retrieves nothing (`sources: []`) and the model correctly answers that it has no information; the
+standalone form, "Are gift cards refundable?", retrieves the passage at 0.66 and answers correctly.
+This matches the design — the user query is embedded as given — but a query-condensation step that
+rewrites the question using the Redis window before retrieval is the standard fix (see next steps).
+
 ## Possible next steps
 
 1. Authentication (JWT or OIDC) plus per-organization roles — the chain is ready for it.
 2. Streaming answers (SSE) — `ChatModel.stream` behind the existing `AnswerGenerator` interface.
 3. Re-ingestion and re-embedding when the embedding model or chunking changes.
-4. Testcontainers integration tests for real pgvector and Redis behaviour.
+4. Query condensation: rewrite a follow-up into a standalone question from the conversation window
+   before embedding it for retrieval.
+5. Testcontainers integration tests for real pgvector and Redis behaviour.
