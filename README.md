@@ -3,19 +3,11 @@
 A multi-tenant RAG service: each organization owns projects, each project owns ingested documents,
 and questions are answered **only** from those documents, with citations.
 
-Built to a written brief ([`SKILL.md`](Backend/SKILL.MD)) and developed in small, tested, committed
-increments — 273 backend tests, zero infrastructure required to run them.
-
-<!-- ══════════════════════════════════════════════════════════════════════════════
-     DEMO VIDEO — replace the placeholder in the next section.
-     Easiest route: drag the .mp4 into any GitHub issue or PR comment box, copy the
-     https://github.com/user-attachments/assets/… URL it generates, and paste it into
-     the <video src="…"> below. Do not commit the file itself (*.mp4 is gitignored).
-     ══════════════════════════════════════════════════════════════════════════════ -->
+273 backend tests, zero infrastructure required to run them.
 
 ## Demo
 
-<video src="PASTE_VIDEO_URL_HERE" controls muted playsinline width="100%"></video>
+<video src="https://www.youtube.com/watch?v=Ej5GUgVgbnQ" controls muted playsinline width="100%"></video>
 
 **Recording script** (90–120 s, one take — the last beat is the one that lands):
 
@@ -23,17 +15,6 @@ increments — 273 backend tests, zero infrastructure required to run them.
 2. Create a project, upload a markdown or PDF document → watch it go from `pending` to `indexed` with a chunk count.
 3. Ask a question the document answers → cited answer, with model and latency badges.
 4. Ask the **same question again** → answered from the semantic cache with no model call.
-
-<details>
-<summary>How to insert the recording</summary>
-
-1. Record it (QuickTime, `cmd+shift+5`, or Loom).
-2. Drag the file into any GitHub issue or PR comment box; GitHub uploads it and returns a URL.
-3. Paste that URL into `src` above. GitHub renders `<video>` for its own attachment URLs.
-4. Prefer YouTube/Loom? Replace the tag with `[![Watch the walkthrough](docs/thumbnail.png)](https://your-link)`.
-5. Keep the file out of the repo — `*.mp4`, `*.mov` and `*.webm` are gitignored.
-
-</details>
 
 ---
 
