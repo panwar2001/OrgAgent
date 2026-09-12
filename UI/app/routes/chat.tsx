@@ -166,18 +166,27 @@ export default function Chat() {
 
   return (
     <div className="flex h-svh min-h-0 flex-col">
-      <header className="flex items-center justify-between gap-3 border-b px-4 py-2">
-        <Button asChild size="sm" variant="ghost">
-          <Link to="/">
-            <ArrowLeftIcon data-icon="inline-start" />
-            Dashboard
-          </Link>
-        </Button>
+      <header className="flex items-center justify-between gap-3 border-b px-3 py-2">
+        <div className="flex min-w-0 items-center gap-2">
+          <Button asChild size="sm" variant="ghost">
+            <Link to="/">
+              <ArrowLeftIcon data-icon="inline-start" />
+              Console
+            </Link>
+          </Button>
+          <span className="min-w-0 truncate text-sm text-muted-foreground">
+            <span className="font-medium text-foreground">
+              {activeProject ? activeProject.name : "New chat"}
+            </span>
+            {" · "}
+            {data.organization.name}
+          </span>
+        </div>
         <UserMenu />
       </header>
 
       <div className="flex min-h-0 flex-1">
-      <aside className="hidden w-72 shrink-0 md:block">
+      <aside className="hidden w-72 shrink-0 border-r md:block">
         <SessionRail
           organizationId={data.organization.id}
           organizationName={data.organization.name}
@@ -188,23 +197,6 @@ export default function Chat() {
       </aside>
 
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="flex items-center justify-between gap-3 border-b px-4 py-3 lg:px-6">
-          <div className="min-w-0">
-            <p className="truncate font-heading text-sm font-semibold">
-              {activeProject ? activeProject.name : "New chat"}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {data.organization.name} · {data.sessions.totalElements} session(s)
-              {activeProject ? ` · ${activeProject.slug}` : ""}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button asChild size="sm" variant="ghost">
-              <Link to="/chat">New chat</Link>
-            </Button>
-          </div>
-        </div>
-
         <div className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 lg:px-6">
             {messages.length === 0 && !answer && (

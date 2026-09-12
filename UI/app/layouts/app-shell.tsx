@@ -60,7 +60,6 @@ export default function AppShell() {
             {organization ? (
               <>
                 <p className="truncate font-medium text-foreground">{organization.name}</p>
-                <p className="truncate text-muted-foreground">{organization.slug}</p>
                 <StatusBadge status={organization.status} />
               </>
             ) : (

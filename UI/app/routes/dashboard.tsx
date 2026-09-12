@@ -77,7 +77,7 @@ export default function Dashboard() {
     <>
       <PageHeader
         title={organization.name}
-        description={`Organization · ${organization.slug}`}
+        description="Your organization’s projects and documents."
         actions={
           <>
             <StatusBadge status={organization.status} />
