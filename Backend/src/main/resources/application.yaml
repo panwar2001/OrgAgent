@@ -1,0 +1,107 @@
+spring:
+  application:
+    name: orgagent-backend
+
+  # Every request and every @Async task runs on a virtual thread (Java 25).
+  threads:
+    virtual:
+      enabled: true
+
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/orgagent}
+    username: ${POSTGRES_USER:orgagent}
+    password: ${POSTGRES_PASSWORD:orgagent}
+    hikari:
+      # Virtual threads park cheaply, so a small pool is enough to saturate the DB.
+      maximum-pool-size: ${DB_POOL_SIZE:16}
+      minimum-idle: 4
+      connection-timeout: 10000
+      pool-name: orgagent-pool
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+
+  # Flyway owns the schema. Hibernate only validates it.
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    validate-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+      lettuce:
+        pool:
+          max-active: 16
+          max-idle: 8
+          min-idle: 2
+
+  ai:
+    google:
+      genai:
+        api-key: ${GEMINI_API_KEY:}
+        chat:
+          model: ${GEMINI_CHAT_MODEL:gemini-2.5-flash}
+          temperature: 0.2
+          max-output-tokens: 2048
+        embedding:
+          text:
+            model: ${GEMINI_EMBEDDING_MODEL:gemini-embedding-001}
+            dimensions: ${EMBEDDING_DIMENSIONS:768}
+    vectorstore:
+      pgvector:
+        # The schema is created by Flyway (V1__init.sql); Spring AI must not fight it.
+        initialize-schema: false
+        schema-name: public
+        table-name: document_embeddings
+        dimensions: ${EMBEDDING_DIMENSIONS:768}
+        distance-type: COSINE_DISTANCE
+        index-type: HNSW
+
+server:
+  port: ${SERVER_PORT:8080}
+  shutdown: graceful
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+
+orgagent:
+  rag:
+    # How many of the most recent turns are replayed from Redis into the prompt.
+    chat-window-size: ${CHAT_WINDOW_SIZE:20}
+    # TTL for the live (Redis) conversation window.
+    chat-window-ttl: ${CHAT_WINDOW_TTL:PT24H}
+    # Max documents pulled out of pgvector for a single question.
+    retrieval-top-k: ${RETRIEVAL_TOP_K:6}
+    # Minimum cosine similarity (0..1) a retrieved chunk must have to be used.
+    retrieval-similarity-threshold: ${RETRIEVAL_SIMILARITY_THRESHOLD:0.6}
+  cache:
+    semantic:
+      enabled: ${SEMANTIC_CACHE_ENABLED:true}
+      # Cosine similarity (0..1) above which a cached answer is considered a hit.
+      similarity-threshold: ${SEMANTIC_CACHE_SIMILARITY_THRESHOLD:0.95}
+      ttl: ${SEMANTIC_CACHE_TTL:P7D}
+      max-entries-per-project: ${SEMANTIC_CACHE_MAX_ENTRIES:5000}
+  ingestion:
+    max-file-size: ${INGESTION_MAX_FILE_SIZE:25MB}
+    chunk-size: ${INGESTION_CHUNK_SIZE:800}
+    chunk-overlap: ${INGESTION_CHUNK_OVERLAP:120}
+
+logging:
+  level:
+    com.panwar2001.orgagent: ${LOG_LEVEL:INFO}

@@ -1,0 +1,72 @@
+services:
+  postgres:
+    build:
+      context: ./infra/postgres
+    image: orgagent/postgres:18-pgvector
+    container_name: orgagent-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-orgagent}
+      POSTGRES_USER: ${POSTGRES_USER:-orgagent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orgagent}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-orgagent} -d ${POSTGRES_DB:-orgagent}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:8-alpine
+    container_name: orgagent-redis
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - allkeys-lru
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    build:
+      context: .
+    image: orgagent/backend:latest
+    container_name: orgagent-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      POSTGRES_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-orgagent}
+      POSTGRES_USER: ${POSTGRES_USER:-orgagent}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-orgagent}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      GEMINI_API_KEY: ${GEMINI_API_KEY:?set GEMINI_API_KEY in your shell or .env}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/v3/api-docs || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+
+volumes:
+  postgres-data:
+  redis-data:
